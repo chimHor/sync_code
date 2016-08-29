@@ -213,25 +213,26 @@ int collectCpuStat() {
 
 void printCpuStat() {
     int i = 0;
+    printf("------------------------------------------------------------------\n");
     for (i = 0 ; i < cpuNum+1; i++) {
         if (cpuStat[i].name == NULL) {
             continue;
         }
-
         if ( i == 0) {
-            Log(" %s : user:%d.%d kernel:%d.%d idel: %d.%d iowait: %d.%d\n",
+            Log("%-10s: freq: %-7suser:%3d.%-4dkernel:%3d.%-4didel:%3d.%-4diowait:%3d.%d\n",
                cpuStat[i].name,
+               "-",
                cpuStat[i].lastUserThousands/10,cpuStat[i].lastUserThousands%10,
                cpuStat[i].lastSystemThousands/10,cpuStat[i].lastSystemThousands%10,
                cpuStat[i].lastIdleThousands/10,cpuStat[i].lastIdleThousands%10,
                cpuStat[i].lastIowaitThousands/10,cpuStat[i].lastIowaitThousands%10);
         } else {
             if (cpuStat[i].online == 0) {
-                Log(" %s : off\n",cpuStat[i].name);
+                Log("├── %-6s: off\n",cpuStat[i].name);
             } else {
-                Log(" %s : freq:%d user:%d.%d kernel:%d.%d idel: %d.%d iowait: %d.%d\n",
+                Log("├── %-6s: freq: %-7duser:%3d.%-4dkernel:%3d.%-4didel:%3d.%-4diowait:%3d.%d\n",
                     cpuStat[i].name,
-                    cpuStat[i].frequence,
+                    cpuStat[i].frequence/1024,
                     cpuStat[i].lastUserThousands/10,cpuStat[i].lastUserThousands%10,
                     cpuStat[i].lastSystemThousands/10,cpuStat[i].lastSystemThousands%10,
                     cpuStat[i].lastIdleThousands/10,cpuStat[i].lastIdleThousands%10,
@@ -239,6 +240,7 @@ void printCpuStat() {
             }
         }
     }
+    printf("\n");
 }
 
 int test() {
@@ -247,10 +249,26 @@ int test() {
     return 0;
 }
 
-int main() {
+
+struct OPTION {
+    int interval; //microsecond
+
+};
+struct OPTION option;
+
+int main(int argc, char* argv[]) {
     initCpuStat();
-    test();
-    sleep(1);
-    test();
+
+    option.interval = 500;
+    if (option.interval <= 0) {
+        test();
+        usleep(5000);
+        test();
+    } else {
+        while (1) {
+        test();
+        usleep(option.interval*1000);
+        }
+    }
     return 0;
 }
