@@ -2,7 +2,8 @@
 #define _STAT_UTIL_H
 
 
-#define Log(format,...) printf(format,__VA_ARGS__)
+#define Log(format,...) printf(format, ## __VA_ARGS__)
+#define LogE(format,...) printf(format, ## __VA_ARGS__)
 
 #define M_PATH_MAX 256
 
@@ -21,5 +22,18 @@ enum {
 int parseLine(char* line, int parseStart, int parseEnd, const int *formatData, const int formatLen, char **outString,
     long *outLong, float *outFloat);
 
+int getStringSplitPos(const char* string, char split, int** pos, int* len);
+
+struct StatClass {
+    char* mTag;
+    int (*init)();
+    int (*setFilter)(const char* arg);
+    int (*collect)();
+    int (*printStat)();
+};
+
+int setLogMode(int enableStdOut, int enableAlog, int enableKlog, const char* recordFile);
+int log(const char* msg);
+int loge(const char* msg);
 
 #endif

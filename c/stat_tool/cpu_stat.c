@@ -6,8 +6,7 @@
 #include <unistd.h>
 #include <string.h>
 
-#include "util.h"
-
+#include "cpu_stat.h"
 
 #define CPU_STAT_PATH "/proc/stat"
 #define CPU_ATTR_PATH_PREFIX "/sys/devices/system/cpu/"
@@ -18,7 +17,8 @@
 
 #define CPU_STATS_STRING_NUM 1
 #define CPU_STATS_LONG_NUM 11
-const int CPU_STATS_FORMAT[] = {
+
+static const int CPU_STATS_FORMAT[] = {
     PROC_SPACE_TERM|PROC_OUT_STRING|PROC_COMBINE,   // 0: cpu_name
     PROC_SPACE_TERM|PROC_OUT_LONG,                  // 1: user
     PROC_SPACE_TERM|PROC_OUT_LONG,                  // 2: nice
@@ -32,28 +32,13 @@ const int CPU_STATS_FORMAT[] = {
     PROC_SPACE_TERM|PROC_OUT_LONG,                  // 10: guest_nice
 };
 
-struct CpuStat {
-    char *name;
-    int online;
-    int frequence;
-    long lastTotal;
-    long lastUser;
-    long lastSystem;
-    long lastIdle;
-    long lastIowait;
-    int lastUserThousands;
-    int lastSystemThousands;
-    int lastIdleThousands;
-    int lastIowaitThousands;
-};
 
-
-int cpuNum = 0;
+static int cpuNum = 0;
 //cpuStat[0] for total, cpuStat[1] for cpu0 ...
-struct CpuStat cpuStat[17];
+static struct CpuStat cpuStat[17];
 
 //return 0 for total , 1 for cpu0 ...
-int getCpuIndex(const char* name) {
+static int getCpuIndex(const char* name) {
     if (strcmp(name,"cpu") == 0) {
         return 0;
     }
@@ -66,11 +51,16 @@ int getCpuIndex(const char* name) {
     return index+1;
 }
 
-void initCpuStat() {
-    memset(&(cpuStat[0]), 0, sizeof(cpuStat));
+static void initCpuStat() {
+    memset(&(cpuStat[0]), 0, 17*sizeof(cpuStat));
 }
 
-int updateCpuFreq(const char* name) {
+static int setCpuStatFilter(const char* arg) {
+
+    return 0;
+}
+
+static int updateCpuFreq(const char* name) {
     int index = getCpuIndex(name);
 
     //total cpu stat , no online , no freq
@@ -116,7 +106,7 @@ int updateCpuFreq(const char* name) {
     return 0;
 }
 
-int upateCpuStat(const char* name, const long* time) {
+static int upateCpuStatWithName(const char* name, const long* time) {
 
     long user = time[1];
     long nice = time[2];
@@ -160,14 +150,46 @@ int upateCpuStat(const char* name, const long* time) {
     return updateCpuFreq(name);
 }
 
+static int upateCpuStat(struct CpuStat* stat, const long* time) {
 
+    if (stat == NULL || stat->name == NULL) {
+        return -1;
+    }
 
-int collectCpuStat() {
+    long user = time[1];
+    long nice = time[2];
+    long system = time[3];
+    long idle = time[4];
+    long iowait = time[5];
+    long irq = time[6];
+    long softirq = time[7];
+    long steal = time[8];
+    long guest = time[9];
+    long guest_nice = time[10];
+
+    long total = user + nice + system + idle + iowait + irq + softirq +
+                steal + guest + guest_nice;
+    if (stat->lastTotal != 0) {
+        long deltaT = total - stat->lastTotal;
+        stat->lastUserThousands = (user + nice - stat->lastUser) * 1000 / deltaT;
+        stat->lastSystemThousands = (system - stat->lastSystem) * 1000 / deltaT;
+        stat->lastIdleThousands = (idle - stat->lastIdle) * 1000 / deltaT;
+        stat->lastIowaitThousands = (iowait - stat->lastIowait) * 1000 / deltaT;
+    }
+    stat->lastUser = user + nice;
+    stat->lastSystem = system;
+    stat->lastIdle = idle;
+    stat->lastIowait = iowait;
+    stat->lastTotal = total;
+    return updateCpuFreq(stat->name);
+}
+
+static int collectCpuStat() {
     int ret = 0;
 
     FILE* statFile = fopen(CPU_STAT_PATH,"r");
     if (statFile == NULL) {
-        printf("cpu_stat : open /proc/stat fail\n");
+        Log("cpu_stat : open /proc/stat fail\n");
         return -1;
     }
     const int lineBufSize = 384;
@@ -182,7 +204,7 @@ int collectCpuStat() {
         if (outLong != NULL) {
             free(outLong);
         }
-        printf("cpu_stat : malloc fail\n");
+        Log("cpu_stat : malloc fail\n");
         return -1;
     }
 
@@ -196,7 +218,7 @@ int collectCpuStat() {
                 &name, outLong, NULL);
         if ( ret == 0) {
             //print stat
-            upateCpuStat(name,outLong);
+            upateCpuStatWithName(name,outLong);
         } else {
             Log("cpu_stat : parse error line:%s\n", lineBuf);
         }
@@ -211,9 +233,67 @@ int collectCpuStat() {
     return ret;
 }
 
-void printCpuStat() {
+int getCpuStat(struct CpuStat* stat) {
+    if (stat == NULL)
+        return -1;
+    if (stat->name == NULL)
+        return -1;
+
+    int ret = 0;
+
+    FILE* statFile = fopen(CPU_STAT_PATH,"r");
+    if (statFile == NULL) {
+        Log("cpu_stat : open /proc/stat fail\n");
+        return -1;
+    }
+    const int lineBufSize = 384;
+    char *lineBuf = calloc(lineBufSize,sizeof(char));
+    char *name = NULL;
+    long *outLong = calloc(sizeof(long),CPU_STATS_LONG_NUM);
+    if (lineBuf == NULL || outLong == NULL) {
+        fclose(statFile);
+        if (lineBuf != NULL) {
+            free(lineBuf);
+        }
+        if (outLong != NULL) {
+            free(outLong);
+        }
+        Log("cpu_stat : malloc fail\n");
+        return -1;
+    }
+
+    while (ret == 0) {
+        fgets(lineBuf, 384, statFile);
+        if (strncmp(lineBuf,"cpu",strlen("cpu")) != 0) {
+            //parse end
+            break;
+        }
+        ret = parseLine(lineBuf, 0, strlen(lineBuf), CPU_STATS_FORMAT, sizeof(CPU_STATS_FORMAT)/sizeof(int),
+                &name, outLong, NULL);
+
+        if ( ret == 0) {
+            if (strncmp(name,stat->name,strlen(stat->name)) == 0) {
+                upateCpuStat(stat,outLong);
+                free(name);
+                break;
+            }
+        } else {
+            Log("cpu_stat : parse error line:%s\n", lineBuf);
+        }
+        memset(lineBuf,0,lineBufSize*sizeof(char));
+        if (name != NULL) {
+            free(name);
+            name = NULL;
+        }
+    }
+    free(lineBuf);
+    free(outLong);
+    return ret;
+}
+
+static void printCpuStat() {
     int i = 0;
-    printf("------------------------------------------------------------------\n");
+    Log("------------------------------------------------------------------\n");
     for (i = 0 ; i < cpuNum+1; i++) {
         if (cpuStat[i].name == NULL) {
             continue;
@@ -240,7 +320,7 @@ void printCpuStat() {
             }
         }
     }
-    printf("\n");
+    Log("\n");
 }
 
 int test() {
@@ -249,7 +329,30 @@ int test() {
     return 0;
 }
 
+static struct StatClass cpuStatObj = {
+"CPU_STAT",
+initCpuStat,
+setCpuStatFilter,
+collectCpuStat,
+printCpuStat,
+};
 
+struct StatClass* getCpuStatObj() {
+    return &cpuStatObj;
+}
+
+#undef CPU_STAT_PATH
+#undef CPU_ATTR_PATH_PREFIX
+#undef CPU_FREQ_PATH_SUFFIX
+#undef CPU_FREQ_PATH
+#undef CPU_ONLINE_PATH
+#undef CPU_ONLINE_PATH_SUFFIX
+
+#undef CPU_STATS_STRING_NUM
+#undef CPU_STATS_LONG_NUM
+
+
+/*
 struct OPTION {
     int interval; //microsecond
 
@@ -272,3 +375,5 @@ int main(int argc, char* argv[]) {
     }
     return 0;
 }
+*/
+

@@ -1,31 +1,20 @@
 LOCAL_PATH:= $(call my-dir)
 
-common_c := util.c
+common_c := util.c cpu_stat.c proc_stat_util.c proc_stat.c
 
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES:= \
-    cpu_stat.c \
+    main.c \
     $(common_c)
 
-LOCAL_MODULE:= cpu_stat
+LOCAL_MODULE:= stat_tool
 
-LOCAL_SHARED_LIBRARIES := libc
+LOCAL_SHARED_LIBRARIES := libc \
+                          libcutils \
+                          libutils
 
 LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_EXECUTABLE)
 
-include $(CLEAR_VARS)
-
-LOCAL_SRC_FILES:= \
-    proc_stat.c \
-    $(common_c)
-
-LOCAL_MODULE:= proc_stat
-
-LOCAL_SHARED_LIBRARIES := libc
-
-LOCAL_MODULE_TAGS := optional
-
-include $(BUILD_EXECUTABLE)
