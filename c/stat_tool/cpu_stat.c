@@ -51,8 +51,9 @@ static int getCpuIndex(const char* name) {
     return index+1;
 }
 
-static void initCpuStat() {
+static int initCpuStat() {
     memset(&(cpuStat[0]), 0, 17*sizeof(cpuStat));
+    return 0;
 }
 
 static int setCpuStatFilter(const char* arg) {
@@ -291,7 +292,7 @@ int getCpuStat(struct CpuStat* stat) {
     return ret;
 }
 
-static void printCpuStat() {
+static int printCpuStat() {
     int i = 0;
     Log("--CPU Stat----------------------------------------------------------------\n");
     for (i = 0 ; i < cpuNum+1; i++) {
@@ -320,6 +321,7 @@ static void printCpuStat() {
             }
         }
     }
+    return 0;
 }
 
 int test() {

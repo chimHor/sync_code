@@ -7,6 +7,8 @@
 #include <string.h>
 
 #include "proc_stat_util.h"
+
+
 int getProcNameFromCmdline(const char *cmdline, char *name) {
     if (name == NULL || cmdline == NULL) {
         return -1;
@@ -26,4 +28,3 @@ int getProcNameFromCmdline(const char *cmdline, char *name) {
     return 0;
 }
 
-//#undef PROC_NAME_LEN

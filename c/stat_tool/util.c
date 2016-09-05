@@ -12,7 +12,12 @@
 
 
 #include "util.h"
-#define LOG_TAG "stat_tool"
+
+static nsecs_t lastSyncTime = 0;
+static const unsigned char defaultOutputMode = MODE_STDOUTPUT | MODE_ALOG;
+static unsigned char _outputMode = 0;
+static FILE* recordFile = NULL;
+
 // outString may have memory leak
 int parseLine(char* line, int parseStart, int parseEnd, const int *formatData, const int formatLen, char **outString,
     long *outLong, float *outFloat) {
@@ -119,42 +124,8 @@ int getStringSplitPos(const char* string, char split, int** pos, int* len) {
 }
 
 
-static nsecs_t lastSyncTime = 0;
-static const unsigned char defaultOutputMode = MODE_STDOUTPUT | MODE_ALOG;
-static unsigned char _outputMode = 0;
-static FILE* recordFile = NULL;
-
-int stdOutputOrNot() {
-    return _outputMode & MODE_STDOUTPUT;
-}
-
-int  alogOrNot() {
-    return _outputMode & MODE_ALOG;
-}
-
-int klogOrNot() {
-    return _outputMode & MODE_KLOG;
-}
-
-FILE* getRecordFile() {
-    return recordFile;
-}
-
-int syncRecordFile() {
-    nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
-    if (now - lastSyncTime > 1000000 * 500) {
-        sync();
-        lastSyncTime = now;
-    }
-    return 0;
-}
-
 int setLogMode(unsigned char outputMode, const char* file) {
-    _outputMode = outputMode && (~MODE_FILE);
-    if (_outputMode & MODE_KLOG) {
-        klog_init();
-    }
-    //recordFile = file;
+    _outputMode = outputMode & (~MODE_FILE);
     if ((outputMode & MODE_FILE) && (file != NULL)) {
         recordFile = fopen(file,"wb");
         if (recordFile != NULL) {
@@ -164,51 +135,31 @@ int setLogMode(unsigned char outputMode, const char* file) {
     }
     return 0;
 }
-/*
-int setLogMode(int enableStdOutput, int enableAlog, int enableKlog, const char* file) {
-    stdOutput = enableStdOutput;
-    alog = enableAlog;
-    klog = enableKlog;
-    if (klog) {
-        klog_init();
-    }
-    //recordFile = file;
-    if (file != NULL) {
-        recordFile = fopen(file,"wb");
-        if (recordFile != NULL) {
-            lastSyncTime = systemTime(SYSTEM_TIME_MONOTONIC);
-        }
+
+int _stdOutputOrNot() {
+    return ((_outputMode != 0)?_outputMode:defaultOutputMode) & MODE_STDOUTPUT;
+}
+
+int _alogOrNot() {
+    return ((_outputMode != 0)?_outputMode:defaultOutputMode) & MODE_ALOG;
+}
+
+int _klogOrNot() {
+    return ((_outputMode != 0)?_outputMode:defaultOutputMode) & MODE_KLOG;
+}
+
+FILE* _getRecordFile() {
+    return recordFile;
+}
+
+int _syncRecordFile() {
+    nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
+    if (now - lastSyncTime > 1000000 * 500) {
+        fsync(fileno(recordFile));
+        lastSyncTime = now;
+        printf("sync %lld\n",lastSyncTime);
     }
     return 0;
 }
-*/
-
-int log(const char* msg) {
-    if (_outputMode & MODE_STDOUTPUT) {
-        printf(msg);
-    }
-    if (_outputMode & MODE_ALOG) {
-        ALOGE(msg);
-    }
-    if (_outputMode & MODE_KLOG) {
-        //KLOG_ERROR("stat_tool",msg);
-    }
-    if (recordFile!=NULL) {
-        fwrite(msg,strlen(msg),1,recordFile);
-        nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
-        if (now - lastSyncTime > 1000 * 500) {
-            //syncfs(fileno(recordFile));
-            sync();
-            lastSyncTime = now;
-        }
-    }
-    return 0;
-}
-
-int loge(const char* msg) {
-
-    return 0;
-}
-
 
 

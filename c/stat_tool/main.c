@@ -72,9 +72,7 @@ int parseArg(int argc, char* argv[]) {
         }
     }
 
-    //printf("mode:%x\n",statMode);
-    //printf("output mode:%x\n",outputMode);
-    if (outputMode & MODE_MUSK != 0) {
+    if ((outputMode & MODE_MUSK) != 0) {
         setLogMode(outputMode,recordFile);
     }
     return 0;
@@ -102,7 +100,9 @@ int printStat() {
 }
 
 int main(int argc, char* argv[]) {
-    //setLogMode(0xff,"/mnt/sdcard/stat_log");
+
+    klog_init();
+    klog_set_level(KLOG_INFO_LEVEL);
 
     parseArg(argc,argv);
     if (cpuStatObj != NULL) {

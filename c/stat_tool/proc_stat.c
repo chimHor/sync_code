@@ -72,30 +72,48 @@ struct ProcStat {
 };
 
 static struct ProcStat* procStat[512] = {NULL};
+static int procStatSize = 4;
 
-static inited = 0;
+static int inited = 0;
 
 struct ProcFilter {
     char** nameFilter;
+    int nameFilterSize;
     int nameFilterLength;
     int* pidFilter;
+    int pidFilterSize;
     int pidFilterLength;
 };
-struct ProcFilter procFilter = {NULL, 0 , NULL, 0};
+struct ProcFilter procFilter = {NULL, 0 ,0 , NULL, 0, 0};
 
 static int setProcStatFilter(const char* arg) {
     if (arg == NULL)
         return -1;
-    if (procFilter.pidFilter != NULL) {
-        free(procFilter.pidFilter);
-        procFilter.pidFilter = NULL;
+    if (procFilter.nameFilter == NULL) {
+        procFilter.nameFilterSize = (procFilter.nameFilterSize + 1) * 2;
+        procFilter.nameFilter = malloc(sizeof(char*) * procFilter.nameFilterSize);
     }
-    if (procFilter.nameFilter != NULL) {
-        free(procFilter.nameFilter);
-        procFilter.nameFilter = NULL;
+    if (procFilter.pidFilter == NULL) {
+        procFilter.pidFilterSize = (procFilter.pidFilterSize + 1) * 2;
+        procFilter.pidFilter = malloc(sizeof(int) * procFilter.pidFilterSize);
     }
-    procFilter.pidFilterLength = 0;
-    procFilter.nameFilterLength = 0;
+    if ((procFilter.nameFilter == NULL) || (procFilter.pidFilter == NULL)) {
+        LogE("malloc fail (%s+%d, %s)\n",__FILE__, __LINE__, __FUNCTION__);
+        exit(1);
+    }
+
+    if (procFilter.nameFilterLength > 0) {
+        int i;
+        for (i = 0; i < procFilter.nameFilterLength; i++) {
+            free(*(procFilter.nameFilter+i));
+            *(procFilter.nameFilter+i) = NULL;
+        }
+        procFilter.nameFilterLength = 0;
+    }
+
+    if (procFilter.pidFilterLength > 0) {
+        procFilter.pidFilterLength = 0;
+    }
 
     int splitCount = 0;
     int *splitPos = NULL;
@@ -106,6 +124,8 @@ static int setProcStatFilter(const char* arg) {
         return -1;
     }
     int i = 0;
+    int pid_i=0;
+    int name_i=0;
     while(i<splitCount+1) {
         const char* begin;
         const char* end;
@@ -128,43 +148,31 @@ static int setProcStatFilter(const char* arg) {
         int pid = 0;
         if ( (pid = (int)strtol(begin,&valueEndptr,10)) > 0 &&
             valueEndptr == end ) {
+            //
+            if (procFilter.pidFilterLength == procFilter.pidFilterSize) {
+                procFilter.pidFilterSize = (procFilter.pidFilterSize + 1) * 2;
+                int* ptr = realloc(procFilter.pidFilter, sizeof(int) * procFilter.pidFilterSize);
+                if (ptr == NULL) {
+                    LogE("realloc fail (%s+%d, %s)\n",__FILE__, __LINE__, __FUNCTION__);
+                    exit(1);
+                }
+                procFilter.pidFilter = ptr;
+            }
+            procFilter.pidFilter[procFilter.pidFilterLength] = pid;
             procFilter.pidFilterLength++;
         } else {
+            //
+            if (procFilter.nameFilterLength == procFilter.nameFilterSize) {
+                procFilter.nameFilterSize = (procFilter.nameFilterSize + 1) * 2;
+                char** ptr = realloc(procFilter.nameFilter, sizeof(char*) * procFilter.nameFilterSize);
+                if (ptr == NULL) {
+                    LogE("realloc fail (%s+%d, %s)\n",__FILE__, __LINE__, __FUNCTION__);
+                    exit(1);
+                }
+                procFilter.nameFilter = ptr;
+            }
+            procFilter.nameFilter[procFilter.nameFilterLength] = strndup(begin,end-begin);
             procFilter.nameFilterLength++;
-        }
-        i++;
-    }
-
-    if (procFilter.pidFilterLength > 0) {
-        procFilter.pidFilter = malloc(sizeof(int)*(procFilter.pidFilterLength));
-    }
-    if (procFilter.nameFilterLength > 0) {
-        procFilter.nameFilter = malloc(sizeof(char*)*(procFilter.nameFilterLength));
-    }
-    i = 0;
-    int pid_i=0;
-    int name_i=0;
-    while(i<splitCount+1) {
-        const char* begin;
-        const char* end;
-        if (i == 0)
-            begin = arg;
-        else
-            begin = arg + splitPos[i-1] + 1;
-        if (*begin == '\0')
-            break;
-        if (i == splitCount)
-            end = arg + strlen(arg);
-        else
-            end = arg + splitPos[i];
-
-        const char* valueEndptr = begin;
-        int pid = 0;
-        if ( (pid = (int)strtol(begin,&valueEndptr,10) )> 0 &&
-            valueEndptr == end ) {
-            procFilter.pidFilter[pid_i++] = pid;
-        } else {
-            procFilter.nameFilter[name_i++] = strndup(begin,end-begin);
         }
         i++;
     }
@@ -200,10 +208,6 @@ static int matchFilter(int pid) {
             return 1;
         }
     }
-    //if (strncmp(name,"zygote",strlen("zygote"))==0)
-    //    return 1;
-    //if (strncmp(name,"system_server",strlen("system_server"))==0)
-    //    return 1;
     return 0;
 }
 
@@ -253,8 +257,6 @@ static int updateProcStat(struct ProcStat* stat, const long* data) {
     return 0;
 }
 
-
-//int getCpuStat(struct CpuStat* stat);
 static int collectProcStat() {
     if (inited == 0)
         initProcStat();
@@ -280,7 +282,6 @@ static int collectProcStat() {
         snprintf(statPath, M_PATH_MAX, "/proc/%d/stat", (procStat[procStatCount])->pid);
         FILE* statFile = fopen(statPath,"r");
         if (statFile == NULL) {
-            //Log("proc(%d): open %s fail\n", (procStat[procStatCount])->pid, statPath);
             if (procStat[procStatCount]->stime != 0 || procStat[procStatCount]->utime != 0) {
                 procStat[procStatCount]->last_utime = procStat[procStatCount]->utime;
                 procStat[procStatCount]->last_stime = procStat[procStatCount]->stime;
@@ -310,7 +311,6 @@ static int printProcStat() {
     int procStatCount = 0;
     Log("--Proc Stat----------------------------------------------------------------\n");
     while(procStat[procStatCount]) {
-        //Log("cputime:%ld    sd:%ld \n", (cpuStat.lastTotal-lastLastTotal),(procStat[procStatCount]->stime-procStat[procStatCount]->last_stime));
         Log("pid:%-8dmFault:%-9ldutime(%ld%%):%-12ldstime(%ld%%):%-12ldnumThread:%-5ldcpu:%-5ld%s\n",
             procStat[procStatCount]->pid,
             procStat[procStatCount]->mFault,
@@ -327,56 +327,7 @@ static int printProcStat() {
     return 0;
 }
 
-/*
-static int printPidStat(int pid) {
-    int ret = 0;
-    char name[M_PATH_MAX] = {0};
-    snprintf(name, M_PATH_MAX, "/proc/%d/cmdline", pid);
-    int fd = open(name, O_RDONLY);
-    if (fd < 0) {
-        Log("no proc(%d)\n",pid);
-        return -1;
-    }
-    memset(name,0,M_PATH_MAX);
-    read(fd, name, M_PATH_MAX);
-    close(fd);
 
-    char statPath[M_PATH_MAX] = {0};
-    snprintf(statPath, M_PATH_MAX, "/proc/%d/stat", pid);
-    FILE* statFile = fopen(statPath,"r");
-    if (statFile == NULL) {
-        Log("proc(%d): open %s fail\n", pid, statPath);
-        return -1;
-    }
-    char *lineBuf = calloc(384,sizeof(char));
-    long *out = calloc(sizeof(long),PROCESS_STATS_LONG_NUM);
-    if (lineBuf == NULL || out == NULL) {
-        fclose(statFile);
-        if (lineBuf != NULL) {
-            free(lineBuf);
-        }
-        if (out != NULL) {
-            free(out);
-        }
-        Log("proc(%d): malloc fail\n", pid);
-        return -1;
-    }
-
-    fgets(lineBuf, 384, statFile);
-    ret = parseLine(lineBuf, 0, strlen(lineBuf), PROCESS_STATS_FORMAT, sizeof(PROCESS_STATS_FORMAT)/sizeof(int),
-        NULL, out, NULL);
-    if ( ret == 0) {
-        Log("%s (%d): mFault:%ld  stime:%ld  utime: %ld  priority:%ld  nice:%ld  numThread:%ld  cpu:%ld\n",
-            name, pid, out[0], out[1], out[2], out[3], out[4], out[5], out[6]);
-    } else {
-        Log("%s (%d): parse error ret:%d\n", name, pid, ret);
-    }
-    free(lineBuf);
-    free(out);
-    return ret;
-}
-
-*/
 static struct StatClass procStatObj = {
 "PROC_STAT",
 initProcStat,
@@ -390,15 +341,4 @@ struct StatClass* getProcStatObj() {
 }
 
 #undef PROCESS_STATS_LONG_NUM
-/*
-#define TEST_FILEPATH "/proc/1/stat"
 
-int test() {
-    return printPidStat(1);
-}
-
-int main() {
-    test();
-    return 0;
-}
-*/

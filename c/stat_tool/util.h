@@ -15,26 +15,35 @@
 #define MODE_KLOG (MODE_STDOUTPUT << 2)
 #define MODE_FILE (MODE_STDOUTPUT << 3)
 
-#define Log2(format,...) printf(format, ## __VA_ARGS__)
-#define LogE(format,...) printf(format, ## __VA_ARGS__)
 
 #define M_PATH_MAX 256
 #define JIFFIES 10
 
+#define LOG_TAG "stat_tool"
 
 #define Log(format,...) \
-    if (stdOutputOrNot()) {\
+    if (_stdOutputOrNot()) {\
         printf(format, ## __VA_ARGS__);\
     }\
-    if (alogOrNot()) {\
-        ALOGE(format, ## __VA_ARGS__);\
+    if (_alogOrNot()) {\
+        ALOGI(format, ## __VA_ARGS__);\
     }\
-    if (klogOrNot()) {\
-        KLOG_ERROR("stat_tool",format, ## __VA_ARGS__);\
+    if (_klogOrNot()) {\
+        KLOG_INFO(LOG_TAG,format, ## __VA_ARGS__);\
     }\
-    if (getRecordFile()!=NULL) {\
-        fprintf(getRecordFile(),format, ## __VA_ARGS__);\
-        syncRecordFile();\
+    if (_getRecordFile()!=NULL) {\
+        fprintf(_getRecordFile(),format, ## __VA_ARGS__);\
+        sync();\
+        _syncRecordFile();\
+    }
+
+#define LogE(format,...) \
+    printf(format, ## __VA_ARGS__);\
+    ALOGE(format, ## __VA_ARGS__);\
+    if (_getRecordFile()!=NULL) {\
+        fprintf(_getRecordFile(),format, ## __VA_ARGS__);\
+        sync();\
+        _syncRecordFile();\
     }
 
 enum {
@@ -65,13 +74,10 @@ struct StatClass {
 //int setLogMode(int enableStdOut, int enableAlog, int enableKlog, const char* recordFile);
 int setLogMode(unsigned char outputMode, const char* file);
 
-int stdOutputOrNot();
-int alogOrNot();
-int klogOrNot();
-FILE* getRecordFile();
-int syncRecordFile();
-
-int log(const char* msg);
-int loge(const char* msg);
+int _stdOutputOrNot();
+int _alogOrNot();
+int _klogOrNot();
+FILE* _getRecordFile();
+int _syncRecordFile();
 
 #endif
