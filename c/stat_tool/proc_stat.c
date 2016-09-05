@@ -67,6 +67,8 @@ struct ProcStat {
     long nice;
     long numThread;
     long cpu;
+    long last_utime;
+    long last_stime;
 };
 
 static struct ProcStat* procStat[512] = {NULL};
@@ -77,13 +79,24 @@ struct ProcFilter {
     char** nameFilter;
     int nameFilterLength;
     int* pidFilter;
-    int pidFilterLength; 
+    int pidFilterLength;
 };
 struct ProcFilter procFilter = {NULL, 0 , NULL, 0};
 
 static int setProcStatFilter(const char* arg) {
     if (arg == NULL)
         return -1;
+    if (procFilter.pidFilter != NULL) {
+        free(procFilter.pidFilter);
+        procFilter.pidFilter = NULL;
+    }
+    if (procFilter.nameFilter != NULL) {
+        free(procFilter.nameFilter);
+        procFilter.nameFilter = NULL;
+    }
+    procFilter.pidFilterLength = 0;
+    procFilter.nameFilterLength = 0;
+
     int splitCount = 0;
     int *splitPos = NULL;
     while( *(arg) == ',') {
@@ -110,10 +123,10 @@ static int setProcStatFilter(const char* arg) {
         else {
             end = arg + splitPos[i];
         }
-        
+
         const char* valueEndptr = begin;
         int pid = 0;
-        if ( (pid = (int)strtol(begin,&valueEndptr,10)) > 0 && 
+        if ( (pid = (int)strtol(begin,&valueEndptr,10)) > 0 &&
             valueEndptr == end ) {
             procFilter.pidFilterLength++;
         } else {
@@ -136,7 +149,7 @@ static int setProcStatFilter(const char* arg) {
         const char* end;
         if (i == 0)
             begin = arg;
-        else 
+        else
             begin = arg + splitPos[i-1] + 1;
         if (*begin == '\0')
             break;
@@ -144,10 +157,10 @@ static int setProcStatFilter(const char* arg) {
             end = arg + strlen(arg);
         else
             end = arg + splitPos[i];
-        
+
         const char* valueEndptr = begin;
         int pid = 0;
-        if ( (pid = (int)strtol(begin,&valueEndptr,10) )> 0 && 
+        if ( (pid = (int)strtol(begin,&valueEndptr,10) )> 0 &&
             valueEndptr == end ) {
             procFilter.pidFilter[pid_i++] = pid;
         } else {
@@ -194,7 +207,14 @@ static int matchFilter(int pid) {
     return 0;
 }
 
+static struct CpuStat cpuStat;
+static long lastLastTotal;
+
 static int initProcStat() {
+
+    memset(&cpuStat,0,sizeof(struct CpuStat));
+    cpuStat.name = strdup("cpu");
+
     DIR *d;
     struct dirent *de;
     d = opendir("/proc");
@@ -212,20 +232,20 @@ static int initProcStat() {
             }
         }
     }
-    
+
     inited = 1;
     return 0;
 }
 
 
 static int updateProcStat(struct ProcStat* stat, const long* data) {
-//        Log("%s (%d): mFault:%ld  stime:%ld  utime: %ld  priority:%ld  nice:%ld  numThread:%ld  cpu:%ld\n",
-//            name, pid, out[0], out[1], out[2], out[3], out[4], out[5], out[6]);
     if (stat == NULL)
         return -1;
+    stat->last_utime = stat->utime;
+    stat->last_stime = stat->stime;
     stat->mFault = data[0];
-    stat->stime = data[1];
-    stat->utime = data[2];
+    stat->utime = data[1];
+    stat->stime = data[2];
     stat->priority = data[3];
     stat->nice = data[4];
     stat->numThread = data[5];
@@ -233,10 +253,13 @@ static int updateProcStat(struct ProcStat* stat, const long* data) {
     return 0;
 }
 
+
+//int getCpuStat(struct CpuStat* stat);
 static int collectProcStat() {
     if (inited == 0)
         initProcStat();
-
+    lastLastTotal=cpuStat.lastTotal;
+    getCpuStat(&cpuStat);
     int ret = 0;
     int procStatCount = 0;
     char *lineBuf = calloc(384,sizeof(char));
@@ -257,7 +280,11 @@ static int collectProcStat() {
         snprintf(statPath, M_PATH_MAX, "/proc/%d/stat", (procStat[procStatCount])->pid);
         FILE* statFile = fopen(statPath,"r");
         if (statFile == NULL) {
-            Log("proc(%d): open %s fail\n", (procStat[procStatCount])->pid, statPath);
+            //Log("proc(%d): open %s fail\n", (procStat[procStatCount])->pid, statPath);
+            if (procStat[procStatCount]->stime != 0 || procStat[procStatCount]->utime != 0) {
+                procStat[procStatCount]->last_utime = procStat[procStatCount]->utime;
+                procStat[procStatCount]->last_stime = procStat[procStatCount]->stime;
+            }
             procStatCount++;
             continue;
         }
@@ -281,20 +308,22 @@ static int collectProcStat() {
 static int printProcStat() {
 
     int procStatCount = 0;
-    Log("------------------------------------------------------------------\n");
+    Log("--Proc Stat----------------------------------------------------------------\n");
     while(procStat[procStatCount]) {
-        Log("pid:%-8dmFault:%-9ldutime:%-12ldstime:%-12ldnumThread:%-5ldcpu:%-5ld%s\n",
+        //Log("cputime:%ld    sd:%ld \n", (cpuStat.lastTotal-lastLastTotal),(procStat[procStatCount]->stime-procStat[procStatCount]->last_stime));
+        Log("pid:%-8dmFault:%-9ldutime(%ld%%):%-12ldstime(%ld%%):%-12ldnumThread:%-5ldcpu:%-5ld%s\n",
             procStat[procStatCount]->pid,
             procStat[procStatCount]->mFault,
-            procStat[procStatCount]->utime,
-            procStat[procStatCount]->stime,
+            (procStat[procStatCount]->utime-procStat[procStatCount]->last_utime)*100/(cpuStat.lastTotal-lastLastTotal),
+            procStat[procStatCount]->utime*JIFFIES,
+            (procStat[procStatCount]->stime-procStat[procStatCount]->last_stime)*100/(cpuStat.lastTotal-lastLastTotal),
+            procStat[procStatCount]->stime*JIFFIES,
             procStat[procStatCount]->numThread,
             procStat[procStatCount]->cpu,
             procStat[procStatCount]->name
             );
         procStatCount++;
     }
-    Log("\n");
     return 0;
 }
 

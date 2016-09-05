@@ -24,6 +24,6 @@ int getProcNameFromCmdline(const char *cmdline, char *name) {
     } else
         name[0] = 0;
     return 0;
-}    
+}
 
 //#undef PROC_NAME_LEN

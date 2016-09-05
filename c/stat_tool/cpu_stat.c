@@ -293,7 +293,7 @@ int getCpuStat(struct CpuStat* stat) {
 
 static void printCpuStat() {
     int i = 0;
-    Log("------------------------------------------------------------------\n");
+    Log("--CPU Stat----------------------------------------------------------------\n");
     for (i = 0 ; i < cpuNum+1; i++) {
         if (cpuStat[i].name == NULL) {
             continue;
@@ -320,7 +320,6 @@ static void printCpuStat() {
             }
         }
     }
-    Log("\n");
 }
 
 int test() {

@@ -118,12 +118,53 @@ int getStringSplitPos(const char* string, char split, int** pos, int* len) {
     return 0;
 }
 
-static int stdOutput = 1;
-static int alog = 1;
-static int klog = 0;
-static FILE* recordFile = NULL;
-static nsecs_t lastSyncTime = 0;
 
+static nsecs_t lastSyncTime = 0;
+static const unsigned char defaultOutputMode = MODE_STDOUTPUT | MODE_ALOG;
+static unsigned char _outputMode = 0;
+static FILE* recordFile = NULL;
+
+int stdOutputOrNot() {
+    return _outputMode & MODE_STDOUTPUT;
+}
+
+int  alogOrNot() {
+    return _outputMode & MODE_ALOG;
+}
+
+int klogOrNot() {
+    return _outputMode & MODE_KLOG;
+}
+
+FILE* getRecordFile() {
+    return recordFile;
+}
+
+int syncRecordFile() {
+    nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
+    if (now - lastSyncTime > 1000000 * 500) {
+        sync();
+        lastSyncTime = now;
+    }
+    return 0;
+}
+
+int setLogMode(unsigned char outputMode, const char* file) {
+    _outputMode = outputMode && (~MODE_FILE);
+    if (_outputMode & MODE_KLOG) {
+        klog_init();
+    }
+    //recordFile = file;
+    if ((outputMode & MODE_FILE) && (file != NULL)) {
+        recordFile = fopen(file,"wb");
+        if (recordFile != NULL) {
+            lastSyncTime = systemTime(SYSTEM_TIME_MONOTONIC);
+            _outputMode |= MODE_FILE;
+        }
+    }
+    return 0;
+}
+/*
 int setLogMode(int enableStdOutput, int enableAlog, int enableKlog, const char* file) {
     stdOutput = enableStdOutput;
     alog = enableAlog;
@@ -140,25 +181,24 @@ int setLogMode(int enableStdOutput, int enableAlog, int enableKlog, const char* 
     }
     return 0;
 }
+*/
 
-#define tag "stat_tool"
 int log(const char* msg) {
-    if (stdOutput) {
+    if (_outputMode & MODE_STDOUTPUT) {
         printf(msg);
     }
-    if (alog) {
+    if (_outputMode & MODE_ALOG) {
         ALOGE(msg);
     }
-    /*
-    if (klog) {
-        KLOG_INFO(msg);
+    if (_outputMode & MODE_KLOG) {
+        //KLOG_ERROR("stat_tool",msg);
     }
-    */
     if (recordFile!=NULL) {
         fwrite(msg,strlen(msg),1,recordFile);
         nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
-        if (now - lastSyncTime > 1000000 * 500) {
+        if (now - lastSyncTime > 1000 * 500) {
             //syncfs(fileno(recordFile));
+            sync();
             lastSyncTime = now;
         }
     }
