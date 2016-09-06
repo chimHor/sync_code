@@ -71,24 +71,28 @@ struct ProcStat {
     long last_stime;
 };
 
-static struct ProcStat* procStat[512] = {NULL};
-static int procStatSize = 4;
+static struct List procStatList;
 
 static int inited = 0;
 
 struct ProcFilter {
+    struct List nameFilter;
+    struct List pidFilter;
+    /*
     char** nameFilter;
     int nameFilterSize;
     int nameFilterLength;
     int* pidFilter;
     int pidFilterSize;
     int pidFilterLength;
+    */
 };
-struct ProcFilter procFilter = {NULL, 0 ,0 , NULL, 0, 0};
+struct ProcFilter procFilter;
 
 static int setProcStatFilter(const char* arg) {
     if (arg == NULL)
         return -1;
+    /*
     if (procFilter.nameFilter == NULL) {
         procFilter.nameFilterSize = (procFilter.nameFilterSize + 1) * 2;
         procFilter.nameFilter = malloc(sizeof(char*) * procFilter.nameFilterSize);
@@ -114,7 +118,11 @@ static int setProcStatFilter(const char* arg) {
     if (procFilter.pidFilterLength > 0) {
         procFilter.pidFilterLength = 0;
     }
-
+    */
+    if (clearListDeep(&(procFilter.pidFilter)) ||
+        clearListDeep(&(procFilter.nameFilter))) {
+        LogE("clear list fail (%s+%d, %s)\n",__FILE__, __LINE__, __FUNCTION__);
+    }
     int splitCount = 0;
     int *splitPos = NULL;
     while( *(arg) == ',') {
@@ -149,6 +157,7 @@ static int setProcStatFilter(const char* arg) {
         if ( (pid = (int)strtol(begin,&valueEndptr,10)) > 0 &&
             valueEndptr == end ) {
             //
+            /*
             if (procFilter.pidFilterLength == procFilter.pidFilterSize) {
                 procFilter.pidFilterSize = (procFilter.pidFilterSize + 1) * 2;
                 int* ptr = realloc(procFilter.pidFilter, sizeof(int) * procFilter.pidFilterSize);
@@ -160,8 +169,13 @@ static int setProcStatFilter(const char* arg) {
             }
             procFilter.pidFilter[procFilter.pidFilterLength] = pid;
             procFilter.pidFilterLength++;
+            */
+            int* item = malloc(sizeof(int));
+            *item = pid;
+            addList(&(procFilter.pidFilter),item);
         } else {
             //
+            /*
             if (procFilter.nameFilterLength == procFilter.nameFilterSize) {
                 procFilter.nameFilterSize = (procFilter.nameFilterSize + 1) * 2;
                 char** ptr = realloc(procFilter.nameFilter, sizeof(char*) * procFilter.nameFilterSize);
@@ -173,6 +187,8 @@ static int setProcStatFilter(const char* arg) {
             }
             procFilter.nameFilter[procFilter.nameFilterLength] = strndup(begin,end-begin);
             procFilter.nameFilterLength++;
+            */
+            addList(&(procFilter.nameFilter),strndup(begin,end-begin));
         }
         i++;
     }
@@ -193,8 +209,9 @@ static int setProcStatFilter(const char* arg) {
 static int matchFilter(int pid) {
 
     int i = 0;
-    for(i = 0; i < procFilter.pidFilterLength; i++) {
-        if (pid == procFilter.pidFilter[i])
+    for(i = 0; i < procFilter.pidFilter.length; i++) {
+        int *ptr = procFilter.pidFilter.list[i];
+        if (pid == *ptr)
             return 1;
     }
 
@@ -203,8 +220,9 @@ static int matchFilter(int pid) {
     sprintf(&(cmdline[0]), "/proc/%d/cmdline", pid);
     getProcNameFromCmdline(cmdline, &(name[0]));
 
-    for (i = 0; i < procFilter.nameFilterLength; i++) {
-        if (!strncmp(name, procFilter.nameFilter[i],strlen(procFilter.nameFilter[i]))) {
+    for (i = 0; i < procFilter.nameFilter.length; i++) {
+        const char* ptr = procFilter.nameFilter.list[i];
+        if (!strncmp(name, prt,strlen(ptr))) {
             return 1;
         }
     }
@@ -218,7 +236,10 @@ static int initProcStat() {
 
     memset(&cpuStat,0,sizeof(struct CpuStat));
     cpuStat.name = strdup("cpu");
-
+    initList(&(procFilter.pidFilter));
+    initList(&(procFilter.nameFilter));
+    initList(&procStatList);
+    /*
     DIR *d;
     struct dirent *de;
     d = opendir("/proc");
@@ -236,7 +257,7 @@ static int initProcStat() {
             }
         }
     }
-
+    */
     inited = 1;
     return 0;
 }
@@ -258,8 +279,10 @@ static int updateProcStat(struct ProcStat* stat, const long* data) {
 }
 
 static int collectProcStat() {
+    /*
     if (inited == 0)
         initProcStat();
+    */
     lastLastTotal=cpuStat.lastTotal;
     getCpuStat(&cpuStat);
     int ret = 0;
@@ -277,6 +300,24 @@ static int collectProcStat() {
     }
     char statPath[M_PATH_MAX] = {0};
 
+    DIR *d;
+    struct dirent *de;
+    d = opendir("/proc");
+    int procStatCount = 0;
+    while((de = readdir(d)) != 0) {
+        if(isdigit(de->d_name[0])) {
+            int pid = atoi(de->d_name);
+            if (matchFilter(pid)) {
+                procStat[procStatCount] = calloc(1,sizeof(struct ProcStat));
+                (procStat[procStatCount])->pid = pid;
+                char cmdline[64];
+                sprintf(cmdline, "/proc/%d/cmdline", pid);
+                getProcNameFromCmdline(cmdline, &(((procStat[procStatCount])->name)[0]));
+                procStatCount++;
+            }
+        }
+    }
+    /*
     while(procStat[procStatCount]) {
 
         snprintf(statPath, M_PATH_MAX, "/proc/%d/stat", (procStat[procStatCount])->pid);
@@ -301,6 +342,7 @@ static int collectProcStat() {
         }
         procStatCount++;
     }
+    */
     free(lineBuf);
     free(out);
     return ret;

@@ -28,3 +28,48 @@ int getProcNameFromCmdline(const char *cmdline, char *name) {
     return 0;
 }
 
+int initList(struct List *list) {
+    list->size = 2;
+    list->length = 0;
+    list->list = malloc(sizeof(void*)*(list->size));
+    if (list->list == NULL)
+        return -1;
+    return 0;
+}
+int addList(struct List *list, void* item) {
+    if (list->length == list->size) {
+        list->size = (list->size + 1) * 2;
+        void* ptr = realloc(list->list, sizeof(void*) * (list->size));
+        if (ptr == NULL)
+            return -1;
+        list->list = ptr;
+    }
+    return 0;
+}
+int clearListLight(struct List *list) {
+    for (i = 0;i < list->length; i++) {
+        void **ptr = (list->list)+i;
+        *ptr = NULL;
+    }
+    list->length = 0;
+    return 0;
+}
+int clearListDeep(struct List *list) {
+    int i;
+    for (i = 0;i < list->length; i++) {
+        void **ptr = (list->list)+i;
+        if ( *ptr != NULL) {
+            free(*ptr);
+        }
+    }
+    clearListLight(list);
+    if (list->size > 2) {
+        list->size = 2;
+        if ( list->list != NULL)
+            free(list->list);
+        list->list = malloc(sizeof(void*)*(list->size));
+        if ( list->list == NULL)
+            return -1;
+    }
+    return 0;
+}
