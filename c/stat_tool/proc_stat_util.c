@@ -44,9 +44,12 @@ int addList(struct List *list, void* item) {
             return -1;
         list->list = ptr;
     }
+    (list->list)[list->length] = item;
+    list->length += 1;
     return 0;
 }
 int clearListLight(struct List *list) {
+    int i;
     for (i = 0;i < list->length; i++) {
         void **ptr = (list->list)+i;
         *ptr = NULL;
