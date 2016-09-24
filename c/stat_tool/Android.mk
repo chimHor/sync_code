@@ -18,3 +18,15 @@ LOCAL_MODULE_TAGS := optional
 
 include $(BUILD_EXECUTABLE)
 
+include $(CLEAR_VARS)
+
+LOCAL_SRC_FILES:= \
+    getdelays.c
+LOCAL_MODULE:= getdelays
+
+LOCAL_SHARED_LIBRARIES := libc
+
+LOCAL_MODULE_TAGS := optional
+
+include $(BUILD_EXECUTABLE)
+
