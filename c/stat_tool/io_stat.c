@@ -1,16 +1,3 @@
-/* getdelays.c
- *
- * Utility to get per-pid and per-tgid delay accounting statistics
- * Also illustrates usage of the taskstats interface
- *
- * Copyright (C) Shailabh Nagar, IBM Corp. 2005
- * Copyright (C) Balbir Singh, IBM Corp. 2006
- * Copyright (c) Jay Lan, SGI. 2006
- *
- * Compile with
- *	gcc -I/usr/src/linux/include getdelays.c -o getdelays
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -30,7 +17,7 @@
 
 
 #include "util.h"
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /*
  * Generic macros for dealing with netlink sockets. Might be duplicated
  * elsewhere. It is recommended that commercial grade applications use
@@ -267,6 +254,7 @@ static void _recv()	{
         na = (struct nlattr *) (GENLMSG_DATA(&msg) + len);
     }
 }
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 int main(int argc, char *argv[])
