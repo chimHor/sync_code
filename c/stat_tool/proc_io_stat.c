@@ -376,6 +376,7 @@ static int collectProcIoStat() {
     d = opendir("/proc");
     char path[M_PATH_MAX] = {0};
     while((de = readdir(d)) != 0) {
+
         if (isdigit(de->d_name[0])==0) {
             continue;
         }
@@ -410,12 +411,45 @@ static int collectProcIoStat() {
         list_add_tail(procStatList,&(stat->procNode));
 
 
+        list_for_each(pNode,procStatList) {
+            struct ProcStat* procObj = node_to_item(pNode, struct ProcStat, procNode);
+            getPidStat(procObj);
+            list_for_each(tNode, &(procObj->threadList)) {
+                struct ThreadStat* tObj = node_to_item(tNode, struct ThreadStat, threadNode);
+                getThreadStat(tObj);
+                procObj->read += tObj->read;
+                procObj->write += tObj->write;
+            }
+        }
+
+
         //getstat
     }
     return 0;
 }
 
 static int printProcIoStat() {
+
+    list_for_each(pNode,procStatList) {
+        struct ProcStat* procObj = node_to_item(pNode, struct ProcStat, procNode);
+        struct ProcStat* procLastObj = NULL;
+        list_for_each(pLastNode,lastProcStatList) {
+            procLastObj = node_to_item(pLastNode, struct ProcStat, procNode);
+            if (procLastObj->pid == procObj->pid) {
+                break;
+            }
+            procLastObj = NULL;
+        }
+        if (procLastObj == NULL) {
+            //Log
+        } else {
+            //Log
+        }
+        list_for_each(tNode, &(procObj->threadList)) {
+            struct ThreadStat* tObj = node_to_item(tNode, struct ThreadStat, threadNode);
+
+        }
+    }
     return 0;
 }
 
