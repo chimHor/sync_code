@@ -1,6 +1,7 @@
 LOCAL_PATH:= $(call my-dir)
 
-common_c := util.c cpu_stat.c proc_stat_util.c proc_stat.c
+common_c := util.c cpu_stat.c proc_stat_util.c proc_stat.c \
+            proc_io_stat_util.c proc_io_stat.c
 
 include $(CLEAR_VARS)
 

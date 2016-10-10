@@ -1,12 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <unistd.h>
+#include <poll.h>
+#include <string.h>
+#include <fcntl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
 #include <ctype.h>
 #include <dirent.h>
+#include <signal.h>
+
+#include <linux/genetlink.h>
+#include <linux/taskstats.h>
+#include <linux/cgroupstats.h>
+
 
 #include "proc_io_stat.h"
 #include "proc_io_stat_util.h"
@@ -168,23 +178,10 @@ static void initSocket() {
     }
 }
 
-static void getTgidStat(pid_t pid) {
 
-    int	rc = send_cmd(nl_sd, id, mypid, TASKSTATS_CMD_GET,
-            TASKSTATS_CMD_ATTR_PID, &pid, sizeof(__u32));
-//TASKSTATS_CMD_ATTR_TGID
-    //Log("Sent pid/tgid, retval %d\n", rc);
-    if (rc < 0) {
-        Log("error sending tid/tgid cmd\n");
-    }
+typedef void (*UpdateFunc)(struct taskstats *t, void* data);
 
-}
-
-static void getPidStat(pid_t pid) {
-
-}
-
-static void _recv()	{
+static void _recv(UpdateFunc func, void *data)	{
     struct msgtemplate msg;
     int rep_len = recv(nl_sd, &msg, sizeof(msg), 0);
     //Log("received %d bytes\n", rep_len);
@@ -221,7 +218,8 @@ static void _recv()	{
                             rtid = *(int *) NLA_DATA(na);
                             break;
                         case TASKSTATS_TYPE_STATS:
-                            print_ioacct((struct taskstats *) NLA_DATA(na));
+                            (*func)((struct taskstats *) NLA_DATA(na),data);
+                            //print_ioacct((struct taskstats *) NLA_DATA(na));
                             break;
                         default:
                             Log("Unknown nested"
@@ -246,24 +244,64 @@ static void _recv()	{
     }
 }
 
+static void updateThreadStat(struct taskstats *t, void* data) {
+    struct ThreadStat* tObj = (struct ThreadStat*) data;
+    tObj->read = (unsigned long long)t->read_bytes;
+    tObj->write = (unsigned long long)t->write_bytes;
+}
+
+static void getPidStat(struct ThreadStat* tObj) {
+    pid_t pid = tObj->ppid;
+    int	rc = send_cmd(nl_sd, id, mypid, TASKSTATS_CMD_GET,
+            TASKSTATS_CMD_ATTR_PID, &pid, sizeof(__u32));
+    if (rc < 0) {
+        Log("error sending tid/tgid cmd\n");
+        exit(1);
+    }
+
+    _recv(updateThreadStat,(void*)tObj);
+}
+
+static void updateProcStat(struct taskstats *t, void* data) {
+    struct ProcStat* procObj = (struct ProcStat*) data;
+    procObj->read = (unsigned long long)t->read_bytes;
+    procObj->write = (unsigned long long)t->write_bytes;
+
+}
+
+static void getTgidStat(struct ProcStat* procObj) {
+    pid_t pid = procObj->pid;
+    int	rc = send_cmd(nl_sd, id, mypid, TASKSTATS_CMD_GET,
+            TASKSTATS_CMD_ATTR_TGID, &pid, sizeof(__u32));
+    if (rc < 0) {
+        Log("error sending tid/tgid cmd\n");
+        exit(1);
+    }
+
+    _recv(updateProcStat,(void*)procObj);
+}
+
 ////////////////////////////////////////////////////////////////////////
 
 
 static struct ProcFilter procFilter;
 static struct listnode* procStatList;
 static struct listnode* lastProcStatList;
+static int inited = 0;
 
 static int initProcIoStat() {
     procStatList = NULL;
     lastProcStatList = NULL;
     initList(&(procFilter.pidFilter));
     initList(&(procFilter.nameFilter));
+    initSocket();
+    inited = 1;
     return 0;
 }
 
 static int setProcIoStatFilter(const char* arg) {
     if (inited == 0)
-        initProcStat();
+        initProcIoStat();
 
     if (arg == NULL)
         return -1;
@@ -353,11 +391,9 @@ static int matchFilter(int pid) {
     return 0;
 }
 
-static int updateProcIoStat(struct ProcStat* stat, const long* data) {
-    return 0;
-}
-
 static int collectProcIoStat() {
+    if (inited == 0)
+        initProcIoStat();
 
     if (lastProcStatList != NULL) {
         clearProcList(lastProcStatList);
@@ -386,7 +422,7 @@ static int collectProcIoStat() {
         }
 
 
-        ProcStat* stat = newProcStat(pid);
+        struct ProcStat* stat = newProcStat(pid);
         if (stat == NULL) {
             LogE("malloc fail (%s+%d, %s)\n",__FILE__, __LINE__, __FUNCTION__);
             exit(1);
@@ -394,45 +430,48 @@ static int collectProcIoStat() {
         snprintf(path, M_PATH_MAX, "/proc/%d/task", pid);
         DIR *d2;
         struct dirent *de2;
-        d2 = opendir("/proc");
+        d2 = opendir(path);
         while((de2 = readdir(d2)) != 0) {
             if (isdigit(de2->d_name[0])==0) {
                 continue;
             }
             int ppid = atoi(de2->d_name);
-            ThreadStat* tstat = newThreadStat(ppid);
+            struct ThreadStat* tstat = newThreadStat(ppid);
             if (tstat == NULL) {
                 LogE("malloc fail (%s+%d, %s)\n",__FILE__, __LINE__, __FUNCTION__);
                 exit(1);
             }
-            list_add_tail(&(stat->threadList),&(stat->threadNode));
+            list_add_tail(&(stat->threadList),&(tstat->threadNode));
         }
         closedir(d2);
         list_add_tail(procStatList,&(stat->procNode));
 
-
+        static struct listnode* pNode = NULL;
         list_for_each(pNode,procStatList) {
             struct ProcStat* procObj = node_to_item(pNode, struct ProcStat, procNode);
-            getPidStat(procObj);
+            getTgidStat(procObj);
+            static struct listnode* tNode = NULL;
             list_for_each(tNode, &(procObj->threadList)) {
                 struct ThreadStat* tObj = node_to_item(tNode, struct ThreadStat, threadNode);
-                getThreadStat(tObj);
+                getPidStat(tObj);
                 procObj->read += tObj->read;
                 procObj->write += tObj->write;
             }
         }
 
-
-        //getstat
     }
     return 0;
 }
 
 static int printProcIoStat() {
+    if (inited == 0)
+        initProcIoStat();
 
+    static struct listnode* pNode = NULL;
     list_for_each(pNode,procStatList) {
         struct ProcStat* procObj = node_to_item(pNode, struct ProcStat, procNode);
         struct ProcStat* procLastObj = NULL;
+        static struct listnode* pLastNode = NULL;
         list_for_each(pLastNode,lastProcStatList) {
             procLastObj = node_to_item(pLastNode, struct ProcStat, procNode);
             if (procLastObj->pid == procObj->pid) {
@@ -440,14 +479,38 @@ static int printProcIoStat() {
             }
             procLastObj = NULL;
         }
-        if (procLastObj == NULL) {
-            //Log
+        if (procLastObj != NULL) {
+            Log("pid=%d     read=%llu(+%llu)      write=%llu(+%llu)\n",
+                procObj->pid,
+                procObj->read,
+                procObj->read - procLastObj->read,
+                procObj->write,
+                procObj->write - procLastObj->write);
         } else {
-            //Log
+            Log("pid=%d     read=%llu      write=%llu\n",
+                procObj->pid,
+                procObj->read,
+                procObj->write);
         }
+        static struct listnode* tNode = NULL;
         list_for_each(tNode, &(procObj->threadList)) {
             struct ThreadStat* tObj = node_to_item(tNode, struct ThreadStat, threadNode);
-
+            if (procLastObj!=NULL) {
+                static struct listnode* tNode2 = NULL;
+                list_for_each(tNode2, &(procLastObj->threadList)) {
+                    struct ThreadStat* tLastObj = node_to_item(tNode2, struct ThreadStat, threadNode);
+                    if (tLastObj->ppid == tObj->ppid)
+                        Log("----ppid=%d     read=%llu(+%llu)      write=%llu(+%llu)\n",
+                        tObj->ppid,
+                        tObj->read,
+                        tObj->read - tLastObj->read,
+                        tObj->write,
+                        tObj->write - tLastObj->write);
+                        //Log("--last ppid=%d     read=%llu      write=%llu\n", tLastObj->ppid, tLastObj->read, tLastObj->write);
+                }
+            } else {
+                Log("----ppid=%d     read=%llu      write=%llu\n", tObj->ppid, tObj->read, tObj->write);
+            }
         }
     }
     return 0;
@@ -457,13 +520,11 @@ static struct StatClass procIoStatObj = {
 "PROC_IO_STAT",
 initProcIoStat,
 setProcIoStatFilter,
-collectIoProcStat,
+collectProcIoStat,
 printProcIoStat,
 };
 
 struct StatClass* getProcIoStatObj() {
     return &procIoStatObj;
 }
-
-#undef PROCESS_STATS_LONG_NUM
 

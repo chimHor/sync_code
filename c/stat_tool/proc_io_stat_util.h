@@ -1,10 +1,10 @@
-#ifndef _PROC_STAT_UTIL_H
-#define _PROC_STAT_UTIL_H
+#ifndef _PROC_IO_STAT_UTIL_H
+#define _PROC_IO_STAT_UTIL_H
 
-#include <list.h>
+#include <cutils/list.h>
 
 #include "util.h"
-
+#include "proc_stat_util.h"
 
 struct ThreadStat {
     int ppid;
@@ -33,6 +33,5 @@ struct ProcStat* newProcStat(int pid);
 
 void freeProcList(struct listnode *procList);
 
-int getProcNameFromCmdline(const char *cmdline, char *name);
 
 #endif

@@ -3,11 +3,13 @@
 #include "util.h"
 #include "cpu_stat.h"
 #include "proc_stat.h"
+#include "proc_io_stat.h"
 
 #define MODE_MUSK 0xff
 
 #define MODE_CPU 0x01
 #define MODE_PROC (MODE_CPU << 1)
+#define MODE_PROC_IO (MODE_CPU << 2)
 
 static unsigned char statMode = 0;
 
@@ -21,6 +23,7 @@ static const char *recordFile = NULL;
 
 static struct StatClass* cpuStatObj = NULL;
 static struct StatClass* procStatObj = NULL;
+static struct StatClass* procIoStatObj = NULL;
 
 static int timeInterval = 500*1000;
 
@@ -43,6 +46,16 @@ int parseArg(int argc, char* argv[]) {
             }
             continue;
         }
+        if (!strcmp(argv[i],"--io_stat")) {
+            statMode |= MODE_PROC_IO;
+            procIoStatObj = getProcIoStatObj();
+            if ( (i+1 < argc) && ( *(argv[i+1]) != '-')) {
+                procIoStatObj->setFilter(argv[++i]);
+            }
+            continue;
+        }
+
+
         if (!strcmp(argv[i],"--std_output")) {
             outputMode |= MODE_STDOUTPUT;
             continue;
@@ -85,6 +98,9 @@ int collect() {
     if (procStatObj != NULL) {
         procStatObj->collect();
     }
+    if (procIoStatObj != NULL) {
+        procIoStatObj->collect();
+    }
     return 0;
 }
 
@@ -94,6 +110,9 @@ int printStat() {
     }
     if (procStatObj != NULL) {
         procStatObj->printStat();
+    }
+    if (procIoStatObj != NULL) {
+        procIoStatObj->printStat();
     }
     Log("\n");
     return 0;
