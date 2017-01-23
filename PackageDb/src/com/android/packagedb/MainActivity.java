@@ -38,7 +38,6 @@ import android.content.pm.PackageParser;
 
 import java.io.File;
 import java.lang.reflect.Field;
-//import java.lang.NoSuchFieldException;
 
 public class MainActivity extends Activity {
     static final String TAG = "PackageDbActivity";
@@ -56,8 +55,9 @@ public class MainActivity extends Activity {
 
         setContentView(R.layout.main);
 
-        initTest();
-        testAddpkg();
+testXmlpkg();
+        //initTest();
+        //testAddpkg();
 //        testDbVersion();
     }
 
@@ -72,6 +72,32 @@ public class MainActivity extends Activity {
 //        }
 
     }
+    public void testXmlpkg() {
+        /*
+        XmlPkgSerializer x = new XmlPkgSerializer();
+        */
+        ObjXmlOtpImpl x = new ObjXmlOtpImpl();
+        PackageParser pp = new PackageParser();
+        PackageParser.Package pkg = null;
+        File apkfile = new File(pkgInstallerPath);
+        try {
+        int flags = PackageParser.PARSE_IS_SYSTEM | PackageParser.PARSE_MUST_BE_APK;
+        pkg = pp.parsePackage(apkfile, flags);
+        } catch (PackageParser.PackageParserException e) {
+            e.printStackTrace();
+        }
+        Log.e("xxx", pkgToString(pkg));
+        String s = x.serializerPkg(pkg);
+        Log.e("xxx", s);
+        Log.e("xxx", "-------------------------------------");
+        PackageParser.Package pkg2 = x.parsePkg(s);
+        Log.e("xxx", pkgToString(pkg));
+    }
+
+    private String pkgToString(PackageParser.Package pkg) {
+        return ""+pkg.packageName+" "+pkg.baseCodePath+" "+pkg.mVersionCode+" "+pkg.baseHardwareAccelerated+" "+pkg.mLastPackageUsageTimeInMills+" ";
+    }
+
     public void testAddpkg() {
         ppdManager.clear();
         ppdManager.addPkgParserData(pkgInstallerPath);
