@@ -11,6 +11,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Modifier;
 
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -49,8 +50,10 @@ class ObjXmlOtpImpl {
             Type[] argTypes = pType.getActualTypeArguments();
             if (argTypes.length < 1)
                 return;
-            if (DEBUG)
-                Log.w(TAG, "serializer member: "+ f.getName()+ "  argType : " + ((Class)argTypes[0]).getName());
+            //if (DEBUG)
+            //    Log.w(TAG, "serializer member: "+ f.getName()+ "  argType : " + ((Class)argTypes[0]).getName());
+        } else {
+            return;
         }
         ArrayList list = (ArrayList) t;
         int size = list.size();
@@ -77,8 +80,8 @@ class ObjXmlOtpImpl {
             Type[] argTypes = pType.getActualTypeArguments();
             if (argTypes.length < 1)
                 return;
-            if (DEBUG)
-                Log.w(TAG, "serializer member: "+ f.getName()+ "  argType : " + ((Class)argTypes[0]).getName());
+            //if (DEBUG)
+            //    Log.w(TAG, "serializer member: "+ f.getName()+ "  argType : " + ((Class)argTypes[0]).getName());
         }
         ArraySet set = (ArraySet) t;
         int size = set.size();
@@ -125,10 +128,31 @@ class ObjXmlOtpImpl {
                 arrayMapSerializer(serializer, t ,field);
             } else if (c.isArray()) {
                 arraySerializer(serializer, t ,field);
+            } else if (c.equals(String.class)) {
+                serializer.text((String) t);
+            } else if (c.equals(Integer.class)) {
+                serializer.text(((Integer)t).toString());
+            } else if (c.equals(Long.class)) {
+                serializer.text(((Long)t).toString());
+            } else if (c.equals(Boolean.class)) {
+                serializer.text(((Boolean)t).toString());
             } else {
                 Field[] fields = c.getFields();
                 for (Field f : fields) {
                     //base type
+                    int mode = f.getModifiers();
+                    if (Modifier.isFinal(mode) && Modifier.isStatic(mode)) {
+                        if (DEBUG)
+                            Log.w(TAG, c.getName()+" field:" + f.getName() + " is FINAL and STATIC");
+                        continue;
+                    } else if (Modifier.isFinal(mode)) {
+                        if (DEBUG)
+                            Log.w(TAG, c.getName()+" field:" + f.getName() + " is FINAL");
+                    } else if (Modifier.isStatic(mode)) {
+                        if (DEBUG)
+                            Log.w(TAG, c.getName()+" field:" + f.getName() + " is STATIC");
+                        continue;
+                    }
                     if (f.getType().equals(int.class)) {
                         saveTag(serializer, f.getName(), Integer.toString(f.getInt(t)));
                     } else if (f.getType().equals(boolean.class)) {
@@ -256,11 +280,7 @@ class ObjXmlOtpImpl {
         }
         java.io.StringReader reader = new StringReader(value);
         xpp.setInput(reader);
-        xpp.nextTag();
-        if (xpp.getName().equals("Package")) {
-            parse(xpp,(Object) pkg, PackageParser.Package.class);
-        } else
-            return null;
+        parse(xpp,(Object) pkg, PackageParser.Package.class);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -278,7 +298,6 @@ class ObjXmlOtpImpl {
         xs.setOutput(writer);
         xs.startDocument(null,true);
         serialize(xs, (Object)pkg, null);
-        xs.endTag(null, "Package");
         xs.flush();
         } catch (Exception e) {
             e.printStackTrace();

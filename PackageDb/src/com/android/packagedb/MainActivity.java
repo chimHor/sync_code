@@ -36,6 +36,8 @@ import android.database.sqlite.SQLiteDatabase;
 
 import android.content.pm.PackageParser;
 
+import android.widget.TextView;
+import android.text.method.ScrollingMovementMethod;
 import java.io.File;
 import java.lang.reflect.Field;
 
@@ -47,15 +49,16 @@ public class MainActivity extends Activity {
 
     final String pkgInstallerPath = "/system/app/PackageInstaller";
     final String pkgInstallerName = "com.android.packageinstaller";
-
+    TextView tv;
     public int i = 0;
     @Override
     public void onCreate(Bundle icycle) {
         super.onCreate(icycle);
 
         setContentView(R.layout.main);
-
-testXmlpkg();
+        tv = (TextView) findViewById(R.id.abc);
+        tv.setMovementMethod(ScrollingMovementMethod.getInstance());
+        testXmlpkg();
         //initTest();
         //testAddpkg();
 //        testDbVersion();
@@ -90,8 +93,9 @@ testXmlpkg();
         String s = x.serializerPkg(pkg);
         Log.e("xxx", s);
         Log.e("xxx", "-------------------------------------");
-        PackageParser.Package pkg2 = x.parsePkg(s);
-        Log.e("xxx", pkgToString(pkg));
+        tv.setText(s);
+        //PackageParser.Package pkg2 = x.parsePkg(s);
+        //Log.e("xxx", pkgToString(pkg2));
     }
 
     private String pkgToString(PackageParser.Package pkg) {
