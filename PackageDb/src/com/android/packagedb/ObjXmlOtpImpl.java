@@ -63,12 +63,24 @@ class ObjXmlOtpImpl {
         if (size == 0) {
             return ;
         }
-        serializer.startTag(null, f.getName());
+        //serializer.startTag(null, f.getName());
+        if (f != null) {
+            serializer.startTag(null, f.getName());
+        } else {
+            serializer.startTag(null, "ArrayList");
+        }
+
+
         serializer.attribute(null,"size",""+size);
         for (int i = 0 ; i < size; i++) {
             serialize(serializer, list.get(i), null);
         }
-        serializer.endTag(null, f.getName());
+        //serializer.endTag(null, f.getName());
+        if (f != null) {
+            serializer.endTag(null, f.getName());
+        } else {
+            serializer.endTag(null, "ArrayList");
+        }
     }
 
 
@@ -91,22 +103,69 @@ class ObjXmlOtpImpl {
         if (size == 0) {
             return;
         }
-        serializer.startTag(null, f.getName());
+        //serializer.startTag(null, f.getName());
+        if (f != null) {
+            serializer.startTag(null, f.getName());
+        } else {
+            serializer.startTag(null, "ArraySet");
+        }
+
+
         serializer.attribute(null,"size",""+size);
         for (int i = 0 ; i < size; i++) {
             serialize(serializer, set.valueAt(i), null);
         }
-        serializer.endTag(null, f.getName());
+        //serializer.endTag(null, f.getName());
+        if (f != null) {
+            serializer.endTag(null, f.getName());
+        } else {
+            serializer.endTag(null, "ArraySet");
+        }
+
+
     }
 
-    private static void arraySerializer(XmlSerializer serializer, Object t, Field f) {
-//        String typeStr = f.getType().getName();
+    private static void arraySerializer(XmlSerializer serializer, Object t, Field f)
+        throws XmlPullParserException,IOException{
+        //String typeStr = f.getType().getName();
+        if (t == null) {
+            return;
+        }
+        int length = Array.getLength(t);
+        if (length == 0) {
+            return;
+        }
+        Class c = t.getClass();
+        Class itemC = c.getComponentType();
 
+        if (f != null) {
+            serializer.startTag(null, f.getName());
+        } else {
+            serializer.startTag(null, "Array");
+        }
+
+        for (int i = 0; i < length; i++) {
+            if (itemC.equals(int.class)) {
+                saveTag(serializer, "int", Integer.toString(Array.getInt(t,i)));
+            } else if (itemC.equals(boolean.class)) {
+                saveTag(serializer, "boolean", Boolean.toString(Array.getBoolean(t,i)));
+            } else if (itemC.equals(long.class)) {
+                saveTag(serializer, "long", Long.toString(Array.getLong(t,i)));
+            } else {
+                serialize(serializer, Array.get(t,i), null);
+            }
+        }
+
+        if (f != null) {
+            serializer.endTag(null, f.getName());
+        } else {
+            serializer.endTag(null, "Array");
+        }
     }
 
     private static void arrayMapSerializer(XmlSerializer serializer, Object t, Field f) {
-        if (DEBUG)
-            Log.w(TAG, "serializer skip map type member: "+ f.getName() + "("+ f.getType().getName() + ")");
+//        if (DEBUG)
+//            Log.w(TAG, "serializer skip map type member: "+ f.getName() + "("+ f.getType().getName() + ")");
     }
 
 
@@ -114,12 +173,6 @@ class ObjXmlOtpImpl {
         try {
 
             Class c = t.getClass();
-            if (field == null) {
-                serializer.startTag(null, c.getName());
-            } else {
-                serializer.startTag(null, field.getName());
-            }
-
             if (c.equals(java.util.ArrayList.class)) {
                 arrayListSerializer(serializer, t ,field);
             } else if (c.equals(android.util.ArraySet.class)) {
@@ -128,66 +181,73 @@ class ObjXmlOtpImpl {
                 arrayMapSerializer(serializer, t ,field);
             } else if (c.isArray()) {
                 arraySerializer(serializer, t ,field);
-            } else if (c.equals(String.class)) {
-                serializer.text((String) t);
-            } else if (c.equals(Integer.class)) {
-                serializer.text(((Integer)t).toString());
-            } else if (c.equals(Long.class)) {
-                serializer.text(((Long)t).toString());
-            } else if (c.equals(Boolean.class)) {
-                serializer.text(((Boolean)t).toString());
             } else {
-                Field[] fields = c.getFields();
-                for (Field f : fields) {
-                    //base type
-                    int mode = f.getModifiers();
-                    if (Modifier.isFinal(mode) && Modifier.isStatic(mode)) {
-                        if (DEBUG)
-                            Log.w(TAG, c.getName()+" field:" + f.getName() + " is FINAL and STATIC");
-                        continue;
-                    } else if (Modifier.isFinal(mode)) {
-                        if (DEBUG)
-                            Log.w(TAG, c.getName()+" field:" + f.getName() + " is FINAL");
-                    } else if (Modifier.isStatic(mode)) {
-                        if (DEBUG)
-                            Log.w(TAG, c.getName()+" field:" + f.getName() + " is STATIC");
-                        continue;
-                    }
-                    if (f.getType().equals(int.class)) {
-                        saveTag(serializer, f.getName(), Integer.toString(f.getInt(t)));
-                    } else if (f.getType().equals(boolean.class)) {
-                        saveTag(serializer, f.getName(), Boolean.toString(f.getBoolean(t)));
-                    } else if (f.getType().equals(long.class)) {
-                        saveTag(serializer, f.getName(), Long.toString(f.getLong(t)));
-                    }
+                if (field == null) {
+                    serializer.startTag(null, c.getName());
+                } else {
+                    serializer.startTag(null, field.getName());
+                }
 
-                    Object m = f.get(t);
-                    if (m == null) {
-                        continue;
-                    }
+                if (c.equals(String.class)) {
+                    serializer.text((String) t);
+                } else if (c.equals(Integer.class)) {
+                    serializer.text(((Integer)t).toString());
+                } else if (c.equals(Long.class)) {
+                    serializer.text(((Long)t).toString());
+                } else if (c.equals(Boolean.class)) {
+                    serializer.text(((Boolean)t).toString());
+                } else {
+                    Field[] fields = c.getFields();
+                    for (Field f : fields) {
+                        //base type
+                        int mode = f.getModifiers();
+                        if (Modifier.isFinal(mode) && Modifier.isStatic(mode)) {
+                            if (DEBUG)
+                                Log.w(TAG, c.getName()+" field:" + f.getName() + " is FINAL and STATIC");
+                            continue;
+                        } else if (Modifier.isFinal(mode)) {
+                            if (DEBUG)
+                                Log.w(TAG, c.getName()+" field:" + f.getName() + " is FINAL");
+                        } else if (Modifier.isStatic(mode)) {
+                            if (DEBUG)
+                                Log.w(TAG, c.getName()+" field:" + f.getName() + " is STATIC");
+                            continue;
+                        }
+                        if (f.getType().equals(int.class)) {
+                            saveTag(serializer, f.getName(), Integer.toString(f.getInt(t)));
+                        } else if (f.getType().equals(boolean.class)) {
+                            saveTag(serializer, f.getName(), Boolean.toString(f.getBoolean(t)));
+                        } else if (f.getType().equals(long.class)) {
+                            saveTag(serializer, f.getName(), Long.toString(f.getLong(t)));
+                        }
 
-                    if (f.getType().equals(String.class)) {
-                        saveTag(serializer, f.getName(), (String) m);
-                    } else if (f.getType().equals(java.util.ArrayList.class)) {
-                        arrayListSerializer(serializer, m, f);
-                    } else if (f.getType().equals(android.util.ArraySet.class)) {
-                        arraySetSerializer(serializer, m, f);
-                    } else if (f.getType().equals(android.util.ArrayMap.class)) {
-                        arrayMapSerializer(serializer, m, f);
-                    } else if (f.getType().isArray()) {
-                        arraySerializer(serializer, m, f);
-                    } else {
-                        //todo: other class type
+                        Object m = f.get(t);
+                        if (m == null) {
+                            continue;
+                        }
 
+                        if (f.getType().equals(String.class)) {
+                            saveTag(serializer, f.getName(), (String) m);
+                        } else if (f.getType().equals(java.util.ArrayList.class)) {
+                            arrayListSerializer(serializer, m, f);
+                        } else if (f.getType().equals(android.util.ArraySet.class)) {
+                            arraySetSerializer(serializer, m, f);
+                        } else if (f.getType().equals(android.util.ArrayMap.class)) {
+                            arrayMapSerializer(serializer, m, f);
+                        } else if (f.getType().isArray()) {
+                            arraySerializer(serializer, m, f);
+                        } else {
+                            //todo: other class type
+
+                        }
                     }
                 }
+                if (field == null) {
+                    serializer.endTag(null, c.getName());
+                } else {
+                    serializer.endTag(null, field.getName());
+                }
             }
-            if (field == null) {
-                serializer.endTag(null, c.getName());
-            } else {
-                serializer.endTag(null, field.getName());
-            }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
