@@ -17,6 +17,11 @@ import android.util.ArrayMap;
 
 import android.content.pm.PackageParser;
 
+import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.Serializable;
 /**
  * Created by chim on 1/19/17.
  */
@@ -39,7 +44,12 @@ public class PackageParserDb implements PackageParserDataManager {
     static class PackageTableColumns {
         public static final String _CODEPATH = "codePath";
         public static final String _PACKAGENAME = "packageName";
+        public static final String _CONTENT = "content";
 
+    }
+
+    static class PackageWrapper implements Serializable {
+        public PackageParser.Package obj;
     }
 
     class DbHelper extends SQLiteOpenHelper {
@@ -73,14 +83,16 @@ public class PackageParserDb implements PackageParserDataManager {
             //db.execSQL(sql);
 
             StringBuilder sb = new StringBuilder("CREATE TABLE " + SYSTEMPKG_TABLE + " (");
-            sb.append("codePath TEXT PRIMARY KEY");
+            sb.append(PackageTableColumns._CODEPATH + " TEXT PRIMARY KEY");
+            sb.append(", " + PackageTableColumns._PACKAGENAME + " TEXT");
+            sb.append(", " + PackageTableColumns._CONTENT + " TEXT");
+                /*
             for (Map.Entry<String, Field> entry : pkgFieldsMap.entrySet()) {
                 String key = entry.getKey();
                 if (key.equals("codePath")) {
                     continue;
                 }
                 sb.append(", " + key + " TEXT");
-                /*
                 class type = entry.getValue().getType();
                 if (type.equals(int.class)) {
                     sb.append(", " + key + " 
@@ -89,8 +101,8 @@ public class PackageParserDb implements PackageParserDataManager {
                 } else if (type.equals(String.class)) {
 
                 }
-                */
             }
+            */
             sb.append(");");
             db.execSQL(sb.toString());
         }
@@ -123,35 +135,10 @@ public class PackageParserDb implements PackageParserDataManager {
         helper = new DbHelper(c, DB_VERSION);
     }
 
-    static final Class[] normalClasses = {int.class, boolean.class, String.class};
 
-    static boolean matchNormalClasses(Class c) {
-        for(Class one : normalClasses) {
-            if (c.equals(one))
-                return true;
-        }
-        return false;
-    }
-
-    static final Map<String, Field> pkgFieldsMap = new ArrayMap<String, Field>();
-
-    static {
-        initFieldsMap(pkgFieldsMap, PackageParser.Package.class, "");
-    }
-
-    static void initFieldsMap(Map<String, Field> map, Class c, String prefix) {
-        Field[] fields = c.getFields();
-        for (Field f : fields) {
-            Log.i(TAG,c.toString() + ":" + f.getName() + "(" + f.getType() + ")");
-            if (matchNormalClasses(f.getType())) {
-                map.put(prefix + f.getName(),f);
-            }
-            //todo: other class type
-        }
-    }
-
-    static void fillContentValues(ContentValues cv, PackageParser.Package obj) {
+    static void fillContentValues(ContentValues cv, PackageParser.Package pkg) {
         try {
+        /*
         for (Map.Entry<String, Field> entry : pkgFieldsMap.entrySet()) {
             Field f = entry.getValue();
             Class type = f.getType();
@@ -166,6 +153,15 @@ public class PackageParserDb implements PackageParserDataManager {
                 cv.put(entry.getKey(), (String)f.get(obj));
             }
         }
+            */
+            ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
+            ObjectOutputStream out = new ObjectOutputStream(outBytes);
+            PackageWrapper w = new PackageWrapper();
+            w.obj = pkg;
+            out.writeObject(w);
+            out.close();
+            Log.i(TAG,"pkg output buf size : " + outBytes.size());
+            cv.put(PackageTableColumns._CONTENT, outBytes.toByteArray());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -198,8 +194,8 @@ public class PackageParserDb implements PackageParserDataManager {
         db.beginTransaction();
         ContentValues cv = new ContentValues();
         fillContentValues(cv,pkg);
-        //cv.put(PackageTableColumns._CODEPATH, pkg.codePath);
-        //cv.put(PackageTableColumns._PACKAGENAME, pkg.packageName);
+        cv.put(PackageTableColumns._CODEPATH, pkg.codePath);
+        cv.put(PackageTableColumns._PACKAGENAME, pkg.packageName);
         db.insert(SYSTEMPKG_TABLE,null,cv);
         cv.clear();
         db.setTransactionSuccessful();
@@ -209,8 +205,10 @@ public class PackageParserDb implements PackageParserDataManager {
     }
 
     public PackageParser.Package parsePkgFromCursor(Cursor cursor) {
-        PackageParser.Package pkg = new PackageParser.Package(cursor.getString(cursor.getColumnIndex(PackageTableColumns._PACKAGENAME)));
+        //PackageParser.Package pkg = new PackageParser.Package(cursor.getString(cursor.getColumnIndex(PackageTableColumns._PACKAGENAME)));
+        PackageParser.Package pkg = null;
         try {
+            /*
             for (Map.Entry<String, Field> entry : pkgFieldsMap.entrySet()) {
                 String name = entry.getKey();
                 Field f = entry.getValue();
@@ -231,6 +229,19 @@ public class PackageParserDb implements PackageParserDataManager {
                 }
 
             }
+            */
+            byte[] content = cursor.getBlob(cursor.getColumnIndex(PackageTableColumns._CONTENT));
+            ByteArrayInputStream inBytes = new ByteArrayInputStream(content);
+            if (inBytes.available()>0) {
+                ObjectInputStream in = new ObjectInputStream(inBytes);
+
+                PackageWrapper w = (PackageWrapper)in.readObject();
+                in.close();
+                if (w != null) {
+                    pkg = w.obj;
+                }
+            }
+
         } catch (Exception e) {
             e.printStackTrace();
         }

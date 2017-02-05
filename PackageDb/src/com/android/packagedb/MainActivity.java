@@ -58,9 +58,9 @@ public class MainActivity extends Activity {
         setContentView(R.layout.main);
         tv = (TextView) findViewById(R.id.abc);
         tv.setMovementMethod(ScrollingMovementMethod.getInstance());
-        testXmlpkg();
-        //initTest();
-        //testAddpkg();
+        //testXmlpkg();
+        initTest();
+        testAddpkg();
 //        testDbVersion();
     }
 
