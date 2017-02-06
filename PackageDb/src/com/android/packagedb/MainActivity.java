@@ -58,9 +58,9 @@ public class MainActivity extends Activity {
         setContentView(R.layout.main);
         tv = (TextView) findViewById(R.id.abc);
         tv.setMovementMethod(ScrollingMovementMethod.getInstance());
-        //testXmlpkg();
-        initTest();
-        testAddpkg();
+        testXmlObj();
+        //initTest();
+        //testAddpkg();
 //        testDbVersion();
     }
 
@@ -75,6 +75,23 @@ public class MainActivity extends Activity {
 //        }
 
     }
+    public void testXmlObj() {
+        ObjXmlOtpImpl2 x = new ObjXmlOtpImpl2();
+        TestObj o = TestObj.createRandomTestObj();
+        Log.e("xxx", o.toString());
+        String s = x.serializerPkg(o);
+        Log.e("xxx", "-------------------------------------");
+        tv.setText(s);
+        TestObj o2 = (TestObj)x.parsePkg(s);
+        if (o.equals(o2)) {
+            Log.e("xxx", o2.toString());
+            Log.e("xxx", "---------pass------------");
+        } else {
+            Log.e("xxx", "---------fail------------");
+        }
+    }
+
+
     public void testXmlpkg() {
         /*
         XmlPkgSerializer x = new XmlPkgSerializer();

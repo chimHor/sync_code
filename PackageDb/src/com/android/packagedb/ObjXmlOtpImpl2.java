@@ -45,10 +45,14 @@ class ObjXmlOtpImpl2 {
     static final String ATTR_VCLASS = "kc";
 
     //helper
-    public static void saveTag(XmlSerializer serializer, String name, String value) {
+    public static void saveTag(XmlSerializer serializer, String name, String value, String paraName) {
         if (value != null && value.length()!=0) {
             try {
-                serializer.startTag(null, name).text(value).endTag(null, name);
+                serializer.startTag(null, name);
+                if (paraName != null) {
+                    serializer.attribute(null,ATTR_PARA,paraName);
+                }
+                serializer.text(value).endTag(null, name);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -76,7 +80,15 @@ class ObjXmlOtpImpl2 {
 
     public static Object newInstance(Class c) {
         //to do
-        return null;
+        Object o = null;
+        try {
+            o = c.newInstance();
+        } catch (InstantiationException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return o;
     }
 
     public static abstract class AbstractObjXmlOpt  {
@@ -91,9 +103,8 @@ class ObjXmlOtpImpl2 {
     static final int ARRAYLIST_CODE = 2;
     static final int ARRAYSET_CODE = 3;
     static final int ARRAYMAP_CODE = 4;
-    static final int MAPENTRY_CODE = 5;
+    static final int STRING_CODE = 5;
 
-    //static final int STRING_CODE = 5;
 
 
     static final int INT_CODE = OBJ_CODE - 1;
@@ -115,6 +126,8 @@ class ObjXmlOtpImpl2 {
             return ARRAYMAP_CODE;
         } else if (c.isArray()) {
             return ARRAY_CODE;
+        } else if (c.equals(String.class)) {
+            return STRING_CODE;
         } else {
             return OBJ_CODE;
         }
@@ -129,7 +142,7 @@ class ObjXmlOtpImpl2 {
         new ArrayListXmlOpt(),
         new ArraySetXmlOpt(),
         new ArrayMapXmlOpt(),
-        new MapEntryXmlOpt(),   //5
+        new StringXmlOpt(),   //5
 
         };
 
@@ -357,11 +370,11 @@ class ObjXmlOtpImpl2 {
                 int itemClassCode = classToCode(itemC);
                 if (itemClassCode < OBJ_CODE) {
                     if (itemClassCode == INT_CODE) {
-                        saveTag(serializer, Integer.toString(INT_CODE), Integer.toString(Array.getInt(obj,i)));
+                        saveTag(serializer, Integer.toString(INT_CODE), Integer.toString(Array.getInt(obj,i)),null);
                     } else if (itemClassCode == BOOLEAN_CODE) {
-                        saveTag(serializer, Integer.toString(BOOLEAN_CODE), Boolean.toString(Array.getBoolean(obj,i)));
+                        saveTag(serializer, Integer.toString(BOOLEAN_CODE), Boolean.toString(Array.getBoolean(obj,i)),null);
                     } else if (itemClassCode == LONG_CODE) {
-                        saveTag(serializer, Integer.toString(LONG_CODE), Long.toString(Array.getLong(obj,i)));
+                        saveTag(serializer, Integer.toString(LONG_CODE), Long.toString(Array.getLong(obj,i)),null);
                     }
                 } else {
                     optArray[OBJ_CODE].serialize(serializer, Array.get(obj, i), null);
@@ -582,16 +595,26 @@ class ObjXmlOtpImpl2 {
         }
     }
 
-    public static class MapEntryXmlOpt extends AbstractObjXmlOpt {
-        public MapEntryXmlOpt() {
-            super(MAPENTRY_CODE);
+    public static class StringXmlOpt extends AbstractObjXmlOpt {
+        public StringXmlOpt() {
+            super(STRING_CODE);
         }
-        public Object parse(XmlPullParser parser, Object objParent, Field f) {
-            return null;
+        public Object parse(XmlPullParser parser, Object objParent, Field f)
+            throws XmlPullParserException,IOException {
+            if ( parser.getEventType() != XmlPullParser.START_TAG ) {
+                return null;
+            }
+            String obj = parser.nextText();
+            return obj;
         }
 
         public void serialize(XmlSerializer serializer, Object obj, Field f)
             throws XmlPullParserException,IOException {
+            serializer.startTag(null, Integer.toString(mClassCode));
+            if (f != null){
+                serializer.attribute(null,ATTR_PARA,f.getName());
+            }
+            serializer.text((String)obj).endTag(null, Integer.toString(mClassCode));
         }
     }
 
@@ -714,7 +737,6 @@ class ObjXmlOtpImpl2 {
             super(OBJ_CODE);
         }
 
-
         public Object parse(XmlPullParser parser, Object objParent, Field f)
             throws XmlPullParserException,IOException {
 
@@ -744,6 +766,9 @@ class ObjXmlOtpImpl2 {
             } else {
                 try {
                 String className = parser.getAttributeValue(null,ATTR_CLASS);
+                if (className == null) {
+                    return null;
+                }
                 objTClass = Class.forName(className);
                 } catch (ClassNotFoundException e) {
                     e.printStackTrace();
@@ -759,7 +784,7 @@ class ObjXmlOtpImpl2 {
             while ((xmlType = parser.next()) != XmlPullParser.END_DOCUMENT
                     && (xmlType != XmlPullParser.END_TAG || parser.getDepth() > innerDepth)) {
 
-                if (xmlType == XmlPullParser.START_TAG) {
+                if (xmlType == XmlPullParser.START_TAG && (parser.getDepth() == innerDepth + 1)) {
                     String subClassCodeStr = parser.getName();
                     int subClassCode = Integer.valueOf(subClassCodeStr);
                     String name = parser.getAttributeValue(null,ATTR_PARA);
@@ -790,8 +815,16 @@ class ObjXmlOtpImpl2 {
             return objT;
         }
 
-         public void serialize(XmlSerializer serializer, Object obj, Field field)
+        private void serializeNullObj(XmlSerializer serializer)
             throws XmlPullParserException,IOException {
+            serializer.startTag(null, "0").endTag(null, "0");
+        }
+        public void serialize(XmlSerializer serializer, Object obj, Field field)
+            throws XmlPullParserException,IOException {
+            if (obj == null && field == null) {
+                serializeNullObj(serializer);
+                return;
+            }
             if (obj == null)  { return; }
             try {
                 Class c = obj.getClass();
@@ -842,11 +875,11 @@ class ObjXmlOtpImpl2 {
 
                         if (subClassCode < OBJ_CODE) {
                             if (subClassCode == INT_CODE) {
-                                saveTag(serializer, Integer.toString(INT_CODE), Integer.toString(f.getInt(obj)));
+                                saveTag(serializer, Integer.toString(INT_CODE), Integer.toString(f.getInt(obj)),f.getName());
                             } else if (subClassCode == BOOLEAN_CODE) {
-                                saveTag(serializer, Integer.toString(BOOLEAN_CODE), Boolean.toString(f.getBoolean(obj)));
+                                saveTag(serializer, Integer.toString(BOOLEAN_CODE), Boolean.toString(f.getBoolean(obj)),f.getName());
                             } else if (subClassCode == LONG_CODE) {
-                                saveTag(serializer, Integer.toString(LONG_CODE), Long.toString(f.getLong(obj)));
+                                saveTag(serializer, Integer.toString(LONG_CODE), Long.toString(f.getLong(obj)),f.getName());
                             }
                         } else {
 
@@ -868,41 +901,51 @@ class ObjXmlOtpImpl2 {
 
 // wrapper
     XmlPullParserFactory xppFactory;
-    XmlPullParser xpp;
-    XmlSerializer xs;
+    XmlPullParser mParser;
+    XmlSerializer mSerializer;
 
 
-    public PackageParser.Package parsePkg(String value) {
-        PackageParser.Package pkg = new PackageParser.Package("");
-        /*
+    public Object parsePkg(String value) {
+        //PackageParser.Package pkg = new PackageParser.Package("");
+        Object obj = null;
         try {
-        if (xpp == null) {
+        if (mParser == null) {
             if (xppFactory == null) {
                 xppFactory = XmlPullParserFactory.newInstance();
             }
-            xpp = xppFactory.newPullParser();
+            mParser = xppFactory.newPullParser();
         }
         java.io.StringReader reader = new StringReader(value);
-        xpp.setInput(reader);
-        parse(xpp,(Object) pkg, PackageParser.Package.class);
+        mParser.setInput(reader);
+
+        mParser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
+        while (true) {
+            int xmlType = mParser.next();
+            if (xmlType == XmlPullParser.START_TAG) {
+                obj = optArray[OBJ_CODE].parse(mParser, null, null);
+                break;
+            }
+            if (xmlType == XmlPullParser.END_DOCUMENT) {
+                break;
+            }
+        }
         } catch (Exception e) {
             e.printStackTrace();
         }
-        */
-        return pkg;
+        return obj;
     }
 
 
-    public String serializerPkg(PackageParser.Package pkg) {
+    public String serializerPkg(Object pkg) {
         StringWriter writer = new StringWriter();
         try {
-        if (xs == null) {
-            xs = new FastXmlSerializer();
+        if (mSerializer == null) {
+            mSerializer = new FastXmlSerializer();
         }
-        xs.setOutput(writer);
-        xs.startDocument(null,true);
-        optArray[OBJ_CODE].serialize(xs, (Object)pkg, null);
-        xs.flush();
+        mSerializer.setOutput(writer);
+        mSerializer.startDocument(null,true);
+        optArray[OBJ_CODE].serialize(mSerializer, (Object)pkg, null);
+        mSerializer.flush();
         } catch (Exception e) {
             e.printStackTrace();
         }
