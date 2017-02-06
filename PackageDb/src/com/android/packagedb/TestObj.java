@@ -1,13 +1,15 @@
 package com.android.packagedb;
 
 import android.util.ArrayMap;
-import android.util.ArraySet;
+//import android.util.ArraySet;
 
 import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Random;
+import java.util.Set;
 
 
 public class TestObj {
@@ -35,7 +37,7 @@ public class TestObj {
 
     public static class TestSubObj {
         public String[] sArray;
-        public ArraySet<String> sSet = new ArraySet<String>();
+        //public ArraySet<String> sSet = new ArraySet<String>();
 
         public static TestSubObj createRandomTestSubObj() {
             if (ran.nextInt(6)==0) {
@@ -51,13 +53,14 @@ public class TestObj {
                 }
             }
 
+            /*
             s = ran.nextInt(5);
             if (s>0) {
                 for (int i = 0; i < s; i++) {
                     obj.sSet.add(randomString());
                 }
             }
-
+            */
             return obj;
         }
         public boolean equals(TestSubObj aObj) {
@@ -69,10 +72,12 @@ public class TestObj {
                 Log.e("xxx", "TestSubObj sArray notmatch");
                 return false;
             }
+            /*
             if (!sSet.equals(aObj.sSet)) {
                 Log.e("xxx", "TestSubObj sSet notmatch");
                 return false;
             }
+            */
             return true;
         }
 
@@ -80,7 +85,7 @@ public class TestObj {
         public String toString() {
             StringBuilder sb = new StringBuilder("TestSubObj: [ \n");
             sb.append("sArray: "+ Arrays.toString(sArray) +"\n");
-            sb.append("sSet: "+ sSet.toString()+"\n");
+            //sb.append("sSet: "+ sSet.toString()+"\n");
             sb.append("]");
             return sb.toString();
         }
@@ -109,9 +114,25 @@ public class TestObj {
                 Log.e("xxx", "TestObj sList nomatch");
                 return false;
             }
+            /*
             if (!map.equals(aObj.map)) {
                 Log.e("xxx", "TestObj map nomatch");
                 return false;
+            }
+            */
+            Set keySet = map.keySet();
+            Iterator iterator = keySet.iterator();
+            while (iterator.hasNext()) {
+                String key = (String) iterator.next();
+                TestSubObj v1 = map.get(key);
+                TestSubObj v2 = aObj.map.get(key);
+                if ( v1 != null && !v1.equals(v2)) {
+                    Log.e("xxx", "TestObj map nomatch");
+                    return false ;
+                } else if (v1 == null && v2 != null) {
+                    Log.e("xxx", "TestObj map nomatch");
+                    return false ;
+                }
             }
             return true;
         }
@@ -132,7 +153,7 @@ public class TestObj {
         TestObj obj = new TestObj();
         obj.i = randomInt();
         obj.s = randomString();
-        int s = ran.nextInt(5);
+        int s = ran.nextInt(3)+2;
         if (s>0) {
             obj.intArray = new int[s];
             for (int i = 0; i < s; i++) {
@@ -145,22 +166,16 @@ public class TestObj {
             }
         }
 
-    /*
-    public String s;
-    public int i;
-    public int[] intArray;
-    public ArrayList<String> sList = new ArrayList<String>();
-    public ArrayMap<String,TestSubObj> map = new ArrayMap<String,TestSubObj>();
 
-    */
         s = ran.nextInt(7);
-        s = s/2;
+        s = s/2+1;
         if (s>0) {
             for (int i = 0; i < s; i++) {
                 obj.map.put(randomString(),TestSubObj.createRandomTestSubObj());
             }
         }
         return obj;
+
     }
 
 }

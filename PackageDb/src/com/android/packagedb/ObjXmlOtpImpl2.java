@@ -1,5 +1,5 @@
 package com.android.packagedb;
-import android.content.pm.PackageParser;
+//import android.content.pm.PackageParser;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -15,7 +15,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Modifier;
 
 import android.util.ArrayMap;
-import android.util.ArraySet;
+//import android.util.ArraySet;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -108,7 +108,7 @@ class ObjXmlOtpImpl2 {
                     return Long.valueOf(parser.nextText());
                 }
 
-            public static Object getInstance(AbstractObjXmlOpt opt, XmlPullParser parser, Object objParent, Field f) {
+            public static Object getInstance(AbstractObjXmlOpt opt, XmlPullParser parser, Object objParent, Field f) throws XmlPullParserException {
 
                 Object objT = null;
                 Class objTClass = null;
@@ -126,7 +126,9 @@ class ObjXmlOtpImpl2 {
                     }
                 } else {
                     String className = parser.getAttributeValue(null,ATTR_CLASS);
-                    objT = opt.createInstance(className);
+                    if (className != null) {
+                        objT = opt.createInstance(className);
+                    }
                 }
                 return objT;
             }
@@ -176,7 +178,7 @@ class ObjXmlOtpImpl2 {
         new ObjXmlOpt(),   //0, not allow move
         new ArrayXmlOpt(), //1, not allow move
         new ArrayListXmlOpt(),
-        new ArraySetXmlOpt(),
+        //new ArraySetXmlOpt(),
         new ArrayMapXmlOpt(),
         new StringXmlOpt(),
         // AbstractObjXmlOpt.Helper.BASE_POINT is 0xb0 , so the optArray size must less than 0xff- 0xb0
@@ -230,8 +232,17 @@ class ObjXmlOtpImpl2 {
                             int classCode = Helper.tagNameToClassCode(classCodeStr);
                             if (classCode == ARRAY_CODE) {
                                 collectArrayInfo(parser);
+                            } else if (classCode == INT_CODE) {
+                                arrayItemType = int.class;
+                            } else if (classCode == BOOLEAN_CODE) {
+                                arrayItemType = boolean.class;
+                            } else if (classCode == LONG_CODE) {
+                                arrayItemType = long.class;
                             } else {
-                                arrayItemType = getClass(parser.getAttributeValue(null,ATTR_CLASS));
+                                arrayItemType = optArray[classCode].mClass;
+                                if (arrayItemType == null) {
+                                    arrayItemType = getClass(parser.getAttributeValue(null, ATTR_CLASS));
+                                }
                             }
                             break;
                         }
@@ -264,6 +275,12 @@ class ObjXmlOtpImpl2 {
                             int classCode = Helper.tagNameToClassCode(classCodeStr);
                             if (classCode == ARRAY_CODE) {
                                 return checkClassAndSize(parser,Array.get(obj, 0))+1;
+                            } else if (classCode == INT_CODE) {
+                                arrayItemType = int.class;
+                            } else if (classCode == BOOLEAN_CODE) {
+                                arrayItemType = boolean.class;
+                            } else if (classCode == LONG_CODE) {
+                                arrayItemType = long.class;
                             } else {
                                 Object subObject = Array.get(obj, 0);
                                 if (subObject != null && subObject.getClass().isArray()) {
@@ -271,8 +288,11 @@ class ObjXmlOtpImpl2 {
                                 }
                                 // compare type?
                                 Class itemClass = obj.getClass().getComponentType();
-                                arrayItemType = getClass(parser.getAttributeValue(null,ATTR_CLASS));
-                                if (itemClass.equals(arrayItemType)) {
+                                arrayItemType = optArray[classCode].mClass;
+                                if (arrayItemType == null) {
+                                    arrayItemType = getClass(parser.getAttributeValue(null, ATTR_CLASS));
+                                }
+                                if (arrayItemType != null && itemClass.equals(arrayItemType)) {
                                     return 1;
                                 }
                                 arrayItemType = null;
@@ -309,26 +329,32 @@ class ObjXmlOtpImpl2 {
                 if (dim > 1) {
                     parserArrayObj(parser, subObj, topDepth, lowDepth, dim-1);
                 } else {
-                    do {
-                        if (parser.getDepth() < lowDepth) {
-                            break;
-                        }
-                        if (xmlType == XmlPullParser.START_TAG && parser.getDepth() == lowDepth) {
+                    xmlType = parser.getEventType();
+                    int depth = parser.getDepth();
+                    boolean b = false;
+                    while (xmlType != XmlPullParser.END_DOCUMENT
+                            && (xmlType != XmlPullParser.END_TAG || depth > lowDepth)) {
+                        if (xmlType == XmlPullParser.START_TAG && depth == lowDepth) {
+                            if (b)
+                                break;
                             String subClassCodeStr = parser.getName();
                             int subClassCode = Helper.tagNameToClassCode(subClassCodeStr);
                             if (subClassCode == INT_CODE) {
-                                Array.setInt(subObj, i, Helper.parseInt(parser));
+                                Array.setInt(obj, i, Helper.parseInt(parser));
                             } else if (subClassCode == BOOLEAN_CODE) {
-                                Array.setBoolean(subObj, i, Helper.parseBoolean(parser));
+                                Array.setBoolean(obj, i, Helper.parseBoolean(parser));
                             } else if (subClassCode == LONG_CODE) {
-                                Array.setLong(subObj, i, Helper.parseLong(parser));
+                                Array.setLong(obj, i, Helper.parseLong(parser));
                             } else {
                                 Object item = optArray[OBJ_CODE].parse(parser, null, null);
-                                Array.set(subObj, i, item);
+                                Array.set(obj, i, item);
                             }
+                            b = true;
                         }
-                    } while ((xmlType = parser.next()) != XmlPullParser.END_DOCUMENT
-                            && (xmlType != XmlPullParser.END_TAG || parser.getDepth() > lowDepth));
+                        parser.next();
+                        xmlType = parser.getEventType();
+                        depth = parser.getDepth();
+                    }
                     if (parser.getDepth() < lowDepth) {
                         break;
                     }
@@ -349,9 +375,7 @@ class ObjXmlOtpImpl2 {
             }
 
             Object objT = null;
-            Class objTClass = null;
             if ( objParent != null && f != null ) {
-                objTClass = f.getType();
                 try {
                     objT = f.get(objParent);
                 } catch (Exception e) {
@@ -385,6 +409,14 @@ class ObjXmlOtpImpl2 {
                         dims[i] = arrayDim.get(i).intValue();
                     }
                     objT = Array.newInstance(arrayItemType, dims);
+
+                    if ( objParent != null && f != null ) {
+                        try {
+                            f.set(objParent, objT);
+                        } catch (IllegalAccessException e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
                 parserArrayObj(parser, objT, topDepth, lowDepth, arrayDim.size());
             }
@@ -525,6 +557,7 @@ class ObjXmlOtpImpl2 {
     }
 
 
+    /*
     public static class ArraySetXmlOpt extends AbstractObjXmlOpt {
 
         //public static final Class mClass = android.util.ArraySet.class;
@@ -616,7 +649,7 @@ class ObjXmlOtpImpl2 {
                 serializer.endTag(null, mTagName);
         }
     }
-
+*/
     public static class StringXmlOpt extends AbstractObjXmlOpt {
         public StringXmlOpt() {
             mClass = String.class;
@@ -627,8 +660,15 @@ class ObjXmlOtpImpl2 {
             if ( parser.getEventType() != XmlPullParser.START_TAG ) {
                 return null;
             }
-            String obj = parser.nextText();
-            return obj;
+            Object objT = (Object)parser.nextText();
+            if ( objParent != null && f != null ) {
+                try {
+                    f.set(objParent, objT);
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+            }
+            return objT;
         }
 
         public void serialize(XmlSerializer serializer, Object obj, Field f)
@@ -636,6 +676,8 @@ class ObjXmlOtpImpl2 {
             serializer.startTag(null, mTagName);
             if (f != null){
                 serializer.attribute(null,ATTR_PARA,f.getName());
+            } else {
+                serializer.attribute(null,ATTR_CLASS, String.class.getName());
             }
             serializer.text((String)obj).endTag(null, mTagName);
         }
@@ -672,7 +714,7 @@ class ObjXmlOtpImpl2 {
 
             Method putMethod;
             try {
-                putMethod = ArraySet.class.getDeclaredMethod("put", Object.class, Object.class);
+                putMethod = ArrayMap.class.getDeclaredMethod("put", Object.class, Object.class);
             } catch (Exception e) {
                 e.printStackTrace();
                 return objT;
@@ -710,20 +752,26 @@ class ObjXmlOtpImpl2 {
         public void serialize(XmlSerializer serializer, Object obj, Field f)
             throws XmlPullParserException,IOException {
 
-                ArrayMap map = (ArrayMap) obj;
-                Set keySet = map.keySet();
-                if (keySet.size() == 0) {
-                    return;
-                }
-                serializer.startTag(null, mTagName);
-                Iterator iterator = keySet.iterator();
-                while (iterator.hasNext()) {
-                    Object key = iterator.next();
-                    Object value = map.get(key);
-                    optArray[OBJ_CODE].serialize(serializer, key, null);
-                    optArray[OBJ_CODE].serialize(serializer, value, null);
-                }
-                serializer.endTag(null, mTagName);
+            ArrayMap map = (ArrayMap) obj;
+            Set keySet = map.keySet();
+            if (keySet.size() == 0) {
+                return;
+            }
+            serializer.startTag(null, mTagName);
+            if (f != null) {
+                serializer.attribute(null,ATTR_PARA,f.getName());
+            } else {
+                serializer.attribute(null,ATTR_CLASS, ArrayList.class.getName());
+            }
+
+            Iterator iterator = keySet.iterator();
+            while (iterator.hasNext()) {
+                Object key = iterator.next();
+                Object value = map.get(key);
+                optArray[OBJ_CODE].serialize(serializer, key, null);
+                optArray[OBJ_CODE].serialize(serializer, value, null);
+            }
+            serializer.endTag(null, mTagName);
         }
     }
 
@@ -750,7 +798,24 @@ class ObjXmlOtpImpl2 {
         }
         //todo
         @Override
-        public Object createInstance(String suggestClass) { return null; }
+        public Object createInstance(String suggestClass) {
+            Object o = null;
+            Class c = null;
+            try {
+                c = Class.forName(suggestClass);
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+            try {
+                o = c.newInstance();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+
+            return o;
+        }
         @Override
         public Object createInstance(Class suggestClass) { return null; }
 
@@ -760,13 +825,15 @@ class ObjXmlOtpImpl2 {
             if ( parser.getEventType() != XmlPullParser.START_TAG ) {
                 return null;
             }
+            Object objT = null;
             String classCodeStr = parser.getName();
             int classCode = Helper.tagNameToClassCode(classCodeStr);
             if (classCode > OBJ_CODE ) {
-                return optArray[classCode].parse(parser, objParent ,f);
+                objT = optArray[classCode].parse(parser, objParent ,f);
+                return objT;
             }
 
-            Object objT = Helper.getInstance(this, parser, objParent, f);
+            objT = Helper.getInstance(this, parser, objParent, f);
             if (objT == null) { return null;}
 
             final int innerDepth = parser.getDepth();
@@ -931,6 +998,13 @@ class ObjXmlOtpImpl2 {
         try {
         if (mSerializer == null) {
             mSerializer = new FastXmlSerializer();
+            /*
+            if (xppFactory == null) {
+                xppFactory = XmlPullParserFactory.newInstance();
+            }
+
+            mSerializer = xppFactory.newSerializer();
+            */
         }
         mSerializer.setOutput(writer);
         mSerializer.startDocument(null,true);
