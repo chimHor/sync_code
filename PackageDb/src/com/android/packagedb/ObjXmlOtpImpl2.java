@@ -15,7 +15,7 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Modifier;
 
 import android.util.ArrayMap;
-//import android.util.ArraySet;
+import android.util.ArraySet;
 
 import java.util.ArrayList;
 import java.util.Set;
@@ -178,7 +178,7 @@ class ObjXmlOtpImpl2 {
         new ObjXmlOpt(),   //0, not allow move
         new ArrayXmlOpt(), //1, not allow move
         new ArrayListXmlOpt(),
-        //new ArraySetXmlOpt(),
+        new ArraySetXmlOpt(),
         new ArrayMapXmlOpt(),
         new StringXmlOpt(),
         // AbstractObjXmlOpt.Helper.BASE_POINT is 0xb0 , so the optArray size must less than 0xff- 0xb0
@@ -557,7 +557,6 @@ class ObjXmlOtpImpl2 {
     }
 
 
-    /*
     public static class ArraySetXmlOpt extends AbstractObjXmlOpt {
 
         //public static final Class mClass = android.util.ArraySet.class;
@@ -649,7 +648,7 @@ class ObjXmlOtpImpl2 {
                 serializer.endTag(null, mTagName);
         }
     }
-*/
+
     public static class StringXmlOpt extends AbstractObjXmlOpt {
         public StringXmlOpt() {
             mClass = String.class;

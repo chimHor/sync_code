@@ -83,6 +83,9 @@ public class MainActivity extends Activity {
         Log.e("xxx", "-------------------------------------");
         tv.setText(s);
         TestObj o2 = (TestObj)x.parsePkg(s);
+        if (o2 != null) {
+            Log.e("xxx", o2.toString());
+        }
         if (o.equals(o2)) {
             Log.e("xxx", o2.toString());
             Log.e("xxx", "---------pass------------");
