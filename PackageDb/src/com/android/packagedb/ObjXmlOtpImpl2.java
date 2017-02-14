@@ -31,7 +31,7 @@ import com.android.internal.util.FastXmlSerializer;
 
 import android.util.Log;
 
-class ObjXmlOtpImpl2 {
+public class ObjXmlOtpImpl2 {
 
     static final boolean DEBUG = true;
     static final String TAG = "ObjXmlOtpImpl2";
@@ -107,6 +107,10 @@ class ObjXmlOtpImpl2 {
                 throws XmlPullParserException,IOException {
                     return Long.valueOf(parser.nextText());
                 }
+            public static float parseFloat(XmlPullParser parser)
+                throws XmlPullParserException,IOException {
+                    return Float.intBitsToFloat(Integer.valueOf(parser.nextText()));
+                }
 
             public static Object getInstance(AbstractObjXmlOpt opt, XmlPullParser parser, Object objParent, Field f) throws XmlPullParserException {
 
@@ -116,7 +120,7 @@ class ObjXmlOtpImpl2 {
                     objTClass = f.getType();
                     try {
                         objT = f.get(objParent);
-                        if (objT == null) {
+                        if (objT == null && (!Modifier.isFinal(f.getModifiers()))) {
                             objT = opt.createInstance(objTClass);
                             f.set(objParent, objT);
                         }
@@ -142,8 +146,14 @@ class ObjXmlOtpImpl2 {
                     return BOOLEAN_CODE;
                 } else if (c.equals(long.class)) {
                     return LONG_CODE;
+                } else if (c.equals(float.class)) {
+                    return FLOAT_CODE;
                 } else if (c.isArray()) {
                     return ARRAY_CODE;
+                }
+
+                if (c.equals(CharSequence.class)) {
+                    c = String.class;
                 }
 
                 for (int i = 2; i < optArray.length; i++) {
@@ -172,6 +182,7 @@ class ObjXmlOtpImpl2 {
     static final int INT_CODE = OBJ_CODE - 1;
     static final int BOOLEAN_CODE = OBJ_CODE - 2;
     static final int LONG_CODE = OBJ_CODE - 3;
+    static final int FLOAT_CODE = OBJ_CODE - 4;
 
 
     static final AbstractObjXmlOpt[] optArray = {
@@ -181,6 +192,12 @@ class ObjXmlOtpImpl2 {
         new ArraySetXmlOpt(),
         new ArrayMapXmlOpt(),
         new StringXmlOpt(),
+        new IntegerXmlOpt(),
+        new FloatXmlOpt(),
+        new LongXmlOpt(),
+        new BooleanXmlOpt(),
+        new ApplicationInfoOpt(),
+
         // AbstractObjXmlOpt.Helper.BASE_POINT is 0xb0 , so the optArray size must less than 0xff- 0xb0
         // if BASE_POINT is 0xb00, optArray size must less than 0xfff- 0xb00
         };
@@ -238,6 +255,8 @@ class ObjXmlOtpImpl2 {
                                 arrayItemType = boolean.class;
                             } else if (classCode == LONG_CODE) {
                                 arrayItemType = long.class;
+                            } else if (classCode == FLOAT_CODE) {
+                                arrayItemType = float.class;
                             } else {
                                 arrayItemType = optArray[classCode].mClass;
                                 if (arrayItemType == null) {
@@ -281,6 +300,8 @@ class ObjXmlOtpImpl2 {
                                 arrayItemType = boolean.class;
                             } else if (classCode == LONG_CODE) {
                                 arrayItemType = long.class;
+                            } else if (classCode == FLOAT_CODE) {
+                                arrayItemType = float.class;
                             } else {
                                 Object subObject = Array.get(obj, 0);
                                 if (subObject != null && subObject.getClass().isArray()) {
@@ -345,6 +366,8 @@ class ObjXmlOtpImpl2 {
                                 Array.setBoolean(obj, i, Helper.parseBoolean(parser));
                             } else if (subClassCode == LONG_CODE) {
                                 Array.setLong(obj, i, Helper.parseLong(parser));
+                            } else if (subClassCode == FLOAT_CODE) {
+                                Array.setFloat(obj, i, Helper.parseFloat(parser));
                             } else {
                                 Object item = optArray[OBJ_CODE].parse(parser, null, null);
                                 Array.set(obj, i, item);
@@ -452,6 +475,8 @@ class ObjXmlOtpImpl2 {
                         Helper.saveTag(serializer, Helper.classCodeToTagName(BOOLEAN_CODE), Boolean.toString(Array.getBoolean(obj,i)),null);
                     } else if (itemClassCode == LONG_CODE) {
                         Helper.saveTag(serializer, Helper.classCodeToTagName(LONG_CODE), Long.toString(Array.getLong(obj,i)),null);
+                    } else if (itemClassCode == FLOAT_CODE) {
+                        Helper.saveTag(serializer, Helper.classCodeToTagName(FLOAT_CODE), Integer.toString(Float.floatToRawIntBits(Array.getFloat(obj,i))),null);
                     }
                 } else {
                     optArray[OBJ_CODE].serialize(serializer, Array.get(obj, i), null);
@@ -461,6 +486,184 @@ class ObjXmlOtpImpl2 {
             serializer.endTag(null, mTagName);
         }
     }
+
+    public static class IntegerXmlOpt extends AbstractObjXmlOpt {
+        public IntegerXmlOpt() {
+            mClass = Integer.class;
+        }
+
+        public Object parse(XmlPullParser parser, Object objParent, Field f)
+            throws XmlPullParserException,IOException {
+            if ( parser.getEventType() != XmlPullParser.START_TAG ) {
+                return null;
+            }
+            int i = Helper.parseInt(parser);
+            Object objT = null;
+            if ( objParent != null && f != null ) {
+                try {
+                    objT = f.get(objParent);
+                    if (objT == null && (!Modifier.isFinal(f.getModifiers()))) {
+                        objT = new Integer(i);
+                        f.set(objParent, objT);
+                    } else if(objT != null) {
+                        Integer ii = (Integer) objT;
+                        if (ii.intValue() != i) {
+                            objT = new Integer(i);
+                            f.set(objParent, objT);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else {
+                objT = new Integer(i);
+            }
+
+            return objT;
+        }
+
+        public void serialize(XmlSerializer serializer, Object obj, Field f)
+            throws XmlPullParserException,IOException {
+                if ( obj instanceof Integer ) {
+                    Integer i = (Integer) obj;
+                    Helper.saveTag(serializer, mTagName, i.toString(), (f!=null)?f.getName():null);
+                }
+        }
+    }
+
+
+    public static class BooleanXmlOpt extends AbstractObjXmlOpt {
+        public BooleanXmlOpt() {
+            mClass = Boolean.class;
+        }
+
+        public Object parse(XmlPullParser parser, Object objParent, Field f)
+            throws XmlPullParserException,IOException {
+            if ( parser.getEventType() != XmlPullParser.START_TAG ) {
+                return null;
+            }
+            boolean b = Helper.parseBoolean(parser);
+            Object objT = null;
+            if ( objParent != null && f != null ) {
+                try {
+                    objT = f.get(objParent);
+                    if (objT == null && (!Modifier.isFinal(f.getModifiers()))) {
+                        objT = new Boolean(b);
+                        f.set(objParent, objT);
+                    } else if(objT != null) {
+                        Boolean bb = (Boolean) objT;
+                        if (bb.booleanValue() != b) {
+                            objT = new Boolean(b);
+                            f.set(objParent, objT);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else {
+                objT = new Boolean(b);
+            }
+            return objT;
+        }
+
+        public void serialize(XmlSerializer serializer, Object obj, Field f)
+            throws XmlPullParserException,IOException {
+                if ( obj instanceof Boolean ) {
+                    Boolean b = (Boolean) obj;
+                    Helper.saveTag(serializer, mTagName, b.toString(), (f!=null)?f.getName():null);
+                }
+        }
+    }
+
+    public static class LongXmlOpt extends AbstractObjXmlOpt {
+        public LongXmlOpt() {
+            mClass = Long.class;
+        }
+
+        public Object parse(XmlPullParser parser, Object objParent, Field f)
+            throws XmlPullParserException,IOException {
+            if ( parser.getEventType() != XmlPullParser.START_TAG ) {
+                return null;
+            }
+            long i = Helper.parseLong(parser);
+            Object objT = null;
+            if ( objParent != null && f != null ) {
+                try {
+                    objT = f.get(objParent);
+                    if (objT == null && (!Modifier.isFinal(f.getModifiers()))) {
+                        objT = new Long(i);
+                        f.set(objParent, objT);
+                    } else if(objT != null) {
+                        Long ii = (Long) objT;
+                        if (ii.longValue() != i) {
+                            objT = new Long(i);
+                            f.set(objParent, objT);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else {
+                objT = new Long(i);
+            }
+
+            return objT;
+        }
+
+        public void serialize(XmlSerializer serializer, Object obj, Field f)
+            throws XmlPullParserException,IOException {
+                if ( obj instanceof Long ) {
+                    Long i = (Long) obj;
+                    Helper.saveTag(serializer, mTagName, i.toString(), (f!=null)?f.getName():null);
+                }
+        }
+    }
+
+
+    public static class FloatXmlOpt extends AbstractObjXmlOpt {
+        public FloatXmlOpt() {
+            mClass = Float.class;
+        }
+
+        public Object parse(XmlPullParser parser, Object objParent, Field f)
+            throws XmlPullParserException,IOException {
+            if ( parser.getEventType() != XmlPullParser.START_TAG ) {
+                return null;
+            }
+            float i = Helper.parseFloat(parser);
+            Object objT = null;
+            if ( objParent != null && f != null ) {
+                try {
+                    objT = f.get(objParent);
+                    if (objT == null && (!Modifier.isFinal(f.getModifiers()))) {
+                        objT = new Float(i);
+                        f.set(objParent, objT);
+                    } else if(objT != null) {
+                        Float ii = (Float) objT;
+                        if (ii.longValue() != i) {
+                            objT = new Float(i);
+                            f.set(objParent, objT);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            } else {
+                objT = new Float(i);
+            }
+
+            return objT;
+        }
+
+        public void serialize(XmlSerializer serializer, Object obj, Field f)
+            throws XmlPullParserException,IOException {
+                if ( obj instanceof Float ) {
+                    Float i = (Float) obj;
+                    Helper.saveTag(serializer, mTagName, Integer.toString(Float.floatToIntBits(i.floatValue())), (f!=null)?f.getName():null);
+                }
+        }
+    }
+
 
     public static class ArrayListXmlOpt extends AbstractObjXmlOpt {
         //public static final Class mClass = java.util.ArrayList.class;
@@ -678,11 +881,9 @@ class ObjXmlOtpImpl2 {
             } else {
                 serializer.attribute(null,ATTR_CLASS, String.class.getName());
             }
-            serializer.text((String)obj).endTag(null, mTagName);
+            serializer.text(obj.toString()).endTag(null, mTagName);
         }
     }
-
-
 
     public static class ArrayMapXmlOpt extends AbstractObjXmlOpt {
 
@@ -818,6 +1019,25 @@ class ObjXmlOtpImpl2 {
         @Override
         public Object createInstance(Class suggestClass) { return null; }
 
+        protected boolean handleSerializeSpField(Object o, Field field, String fieldName) {return false;}
+
+        protected Field getField(Object obj, String fieldName) {
+            Class c = obj.getClass();
+            Field f = null;
+            try {
+                for(; c != Object.class; c=c.getSuperclass()) {
+                    f = c.getDeclaredField(fieldName);
+                    if (f != null) {
+                        f.setAccessible(true);
+                        break;
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return f;
+        }
+
         public Object parse(XmlPullParser parser, Object objParent, Field f)
             throws XmlPullParserException,IOException {
 
@@ -849,7 +1069,7 @@ class ObjXmlOtpImpl2 {
                     }
                     Field subField = null;
                     try {
-                        subField = objT.getClass().getField(name);
+                        subField = getField(objT, name);
                         if (subField == null) {
                             continue;
                         }
@@ -860,6 +1080,8 @@ class ObjXmlOtpImpl2 {
                             subField.setBoolean(objT, Helper.parseBoolean(parser));
                         } else if (subClassCode == LONG_CODE) {
                             subField.setLong(objT, Helper.parseLong(parser));
+                        } else if (subClassCode == FLOAT_CODE) {
+                            subField.setFloat(objT, Helper.parseFloat(parser));
                         } else {
                             optArray[classCode].parse(parser, objT ,subField);
                         }
@@ -909,9 +1131,12 @@ class ObjXmlOtpImpl2 {
                     } else {
                     }
                     */
+                    for(; c != Object.class; c=c.getSuperclass()) {
+                        //Field[] fs = c.getDeclaredFields();
+                        Field[] fields = c.getFields();
 
-                    Field[] fields = c.getFields();
                     for (Field f : fields) {
+                        f.setAccessible(true);
                         //base type
                         int mode = f.getModifiers();
                         if (Modifier.isFinal(mode) && Modifier.isStatic(mode)) {
@@ -928,14 +1153,19 @@ class ObjXmlOtpImpl2 {
                         }
                         Class subClass = f.getType();
                         int subClassCode = Helper.classToCode(subClass);
-
+                        String fieldName = f.getName();
+                        if (handleSerializeSpField(obj, f, fieldName)) {
+                            continue;
+                        }
                         if (subClassCode < OBJ_CODE) {
                             if (subClassCode == INT_CODE) {
-                                Helper.saveTag(serializer, Helper.classCodeToTagName(INT_CODE), Integer.toString(f.getInt(obj)),f.getName());
+                                Helper.saveTag(serializer, Helper.classCodeToTagName(INT_CODE), Integer.toString(f.getInt(obj)),fieldName);
                             } else if (subClassCode == BOOLEAN_CODE) {
-                                Helper.saveTag(serializer, Helper.classCodeToTagName(BOOLEAN_CODE), Boolean.toString(f.getBoolean(obj)),f.getName());
+                                Helper.saveTag(serializer, Helper.classCodeToTagName(BOOLEAN_CODE), Boolean.toString(f.getBoolean(obj)),fieldName);
                             } else if (subClassCode == LONG_CODE) {
-                                Helper.saveTag(serializer, Helper.classCodeToTagName(LONG_CODE), Long.toString(f.getLong(obj)),f.getName());
+                                Helper.saveTag(serializer, Helper.classCodeToTagName(LONG_CODE), Long.toString(f.getLong(obj)),fieldName);
+                            } else if (subClassCode == FLOAT_CODE) {
+                                Helper.saveTag(serializer, Helper.classCodeToTagName(FLOAT_CODE), Integer.toString(Float.floatToIntBits(f.getFloat(obj))),fieldName);
                             }
                         } else {
 
@@ -946,7 +1176,7 @@ class ObjXmlOtpImpl2 {
                             optArray[classCode].serialize(serializer, subObj, f);
                         }
                     }
-
+                    }
                     serializer.endTag(null, mTagName);
                 }
             } catch (Exception e) {

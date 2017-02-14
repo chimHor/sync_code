@@ -35,11 +35,22 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteDatabase;
 
 import android.content.pm.PackageParser;
-
+import android.view.View;
 import android.widget.TextView;
+import android.widget.Button;
 import android.text.method.ScrollingMovementMethod;
 import java.io.File;
 import java.lang.reflect.Field;
+import android.os.Debug;
+
+
+import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+import java.io.Serializable;
+import java.security.cert.Certificate;
+
 
 public class MainActivity extends Activity {
     static final String TAG = "PackageDbActivity";
@@ -50,7 +61,9 @@ public class MainActivity extends Activity {
     final String pkgInstallerPath = "/system/app/PackageInstaller";
     final String pkgInstallerName = "com.android.packageinstaller";
     TextView tv;
+    Button b;
     public int i = 0;
+    PackageParser.Package pkg = null;
     @Override
     public void onCreate(Bundle icycle) {
         super.onCreate(icycle);
@@ -58,10 +71,33 @@ public class MainActivity extends Activity {
         setContentView(R.layout.main);
         tv = (TextView) findViewById(R.id.abc);
         tv.setMovementMethod(ScrollingMovementMethod.getInstance());
-        testXmlObj();
-        //initTest();
-        //testAddpkg();
+        b = (Button) findViewById(R.id.but);
+        b.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                            testXmlpkg();
+                            //ttt();
+                        }
+                });
+
+    //testXmlObj();
+//        initTest();
+//        testAddpkg();
 //        testDbVersion();
+    }
+
+    public void ttt() {
+        PackageParser pp = new PackageParser();
+        try {
+        int flags = PackageParser.PARSE_IS_SYSTEM | PackageParser.PARSE_MUST_BE_APK;
+        File apkfile = new File(pkgInstallerPath);
+        pkg = pp.parsePackage(apkfile, flags);
+        pp.collectCertificates(pkg,flags);
+        pp.collectManifestDigest(pkg);
+        Log.w("xxx","xxx");
+        } catch (PackageParser.PackageParserException e) {
+            e.printStackTrace();
+        }
+
     }
 
     public void initTest() {
@@ -95,6 +131,11 @@ public class MainActivity extends Activity {
     }
 
 
+    public static class Holder implements Serializable {
+        //public byte[] mDigest;
+        public Certificate[][] mCertificates;
+    }
+
     public void testXmlpkg() {
         /*
         XmlPkgSerializer x = new XmlPkgSerializer();
@@ -103,17 +144,38 @@ public class MainActivity extends Activity {
         PackageParser pp = new PackageParser();
         PackageParser.Package pkg = null;
         File apkfile = new File(pkgInstallerPath);
-        try {
         int flags = PackageParser.PARSE_IS_SYSTEM | PackageParser.PARSE_MUST_BE_APK;
+        try {
         pkg = pp.parsePackage(apkfile, flags);
-        } catch (PackageParser.PackageParserException e) {
+        pp.collectCertificates(pkg,flags);
+        pp.collectManifestDigest(pkg);
+        Holder h = new Holder();
+
+        h.mCertificates = pkg.mCertificates;
+
+        ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
+        ObjectOutputStream out = new ObjectOutputStream(outBytes);
+        out.writeObject(h);
+        out.close();
+        ByteArrayInputStream inBytes = new ByteArrayInputStream(outBytes.toByteArray());
+        Holder h2 = null;
+        if (inBytes.available()>0) {
+            ObjectInputStream in = new ObjectInputStream(inBytes);
+            h2 = (Holder)in.readObject();
+        }
+
+        } catch (Exception e) {
             e.printStackTrace();
         }
+
+        Log.e("xxx", "-------------------------------------");
+        /*
         Log.e("xxx", pkgToString(pkg));
         String s = x.serializerPkg(pkg);
         Log.e("xxx", s);
         Log.e("xxx", "-------------------------------------");
         tv.setText(s);
+        */
         //PackageParser.Package pkg2 = x.parsePkg(s);
         //Log.e("xxx", pkgToString(pkg2));
     }
@@ -126,11 +188,13 @@ public class MainActivity extends Activity {
         ppdManager.clear();
         ppdManager.addPkgParserData(pkgInstallerPath);
         PackageParser.Package pkg = ppdManager.getPkgParserData(pkgInstallerPath);
+        /*
         if (pkg.packageName.equals(pkgInstallerName)) {
             Log.i(TAG,"test add pkg sucessful");
         } else {
             Log.i(TAG,"test add pkg fail");
         }
+        */
     }
     public void testDbVersion() {
         PackageParserDb manager = null;
