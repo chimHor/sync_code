@@ -41,6 +41,7 @@ import android.widget.Button;
 import android.text.method.ScrollingMovementMethod;
 import java.io.File;
 import java.lang.reflect.Field;
+import java.lang.reflect.Constructor;
 import android.os.Debug;
 
 
@@ -48,9 +49,12 @@ import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.io.Serializable;
 import java.security.cert.Certificate;
-
+import java.security.cert.X509Certificate;
+import java.security.cert.CertificateFactory;
+//import org.apache.harmony.security.utils.JarUtils.VerbatimX509Certificate;
 
 public class MainActivity extends Activity {
     static final String TAG = "PackageDbActivity";
@@ -134,6 +138,17 @@ public class MainActivity extends Activity {
     public static class Holder implements Serializable {
         //public byte[] mDigest;
         public Certificate[][] mCertificates;
+        public Holder(PackageParser.Package pkg) {
+            mCertificates = pkg.mCertificates;
+        }
+    }
+
+    public static class Holder2 implements Serializable {
+        //public byte[] mDigest;
+        public final byte[] bytes;
+        public Holder2(byte[] array) {
+            bytes = array;
+        }
     }
 
     public void testXmlpkg() {
@@ -149,26 +164,53 @@ public class MainActivity extends Activity {
         pkg = pp.parsePackage(apkfile, flags);
         pp.collectCertificates(pkg,flags);
         pp.collectManifestDigest(pkg);
-        Holder h = new Holder();
+        Holder h = new Holder(pkg);
 
-        h.mCertificates = pkg.mCertificates;
-
-        ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
-        ObjectOutputStream out = new ObjectOutputStream(outBytes);
-        out.writeObject(h);
-        out.close();
-        ByteArrayInputStream inBytes = new ByteArrayInputStream(outBytes.toByteArray());
-        Holder h2 = null;
-        if (inBytes.available()>0) {
-            ObjectInputStream in = new ObjectInputStream(inBytes);
-            h2 = (Holder)in.readObject();
+        X509Certificate[] certs = new X509Certificate[h.mCertificates.length];
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        Class c = org.apache.harmony.security.utils.JarUtils.class;
+        Class[] cs = c.getDeclaredClasses();
+        Class c2 = null;
+        for (Class c1 : cs) {
+            if (c1.getName().contains("VerbatimX509Certificate")) {
+                c2 = c1;
+                break;
+            }
+        }
+        Constructor t = null;
+        if (c2 != null) {
+            Log.e("xxx", "c2:"+c2.getName());
+            Constructor[] ts = c2.getConstructors();
+            //t = c2.getDeConstructor(X509Certificate.class, byte[].class);
+            t = ts[0];
+            if (t != null)
+                Log.e("xxx", "find c2: t");
+        }
+        t.setAccessible(true);
+        int i = 0;
+        for (Certificate encCert : h.mCertificates[0]) {
+            final byte[] encoded = encCert.getEncoded();
+            final InputStream is = new ByteArrayInputStream(encoded);
+            certs[i++] = (X509Certificate)t.newInstance(cf.generateCertificate(is), encoded);
         }
 
+        Holder2 hh = new Holder2(certs[0].getEncoded());
+        ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
+        ObjectOutputStream out = new ObjectOutputStream(outBytes);
+        out.writeObject(hh);
+        out.close();
+        ByteArrayInputStream inBytes = new ByteArrayInputStream(outBytes.toByteArray());
+        Holder2 h2 = null;
+        if (inBytes.available()>0) {
+            ObjectInputStream in = new ObjectInputStream(inBytes);
+            h2 = (Holder2)in.readObject();
+        }
+
+        Log.e("xxx", "-------------------------------------");
         } catch (Exception e) {
             e.printStackTrace();
         }
 
-        Log.e("xxx", "-------------------------------------");
         /*
         Log.e("xxx", pkgToString(pkg));
         String s = x.serializerPkg(pkg);

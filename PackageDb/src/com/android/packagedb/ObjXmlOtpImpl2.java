@@ -39,10 +39,12 @@ public class ObjXmlOtpImpl2 {
     static final String ATTR_PARA = "p";
     static final String ATTR_SIZE = "s";
     static final String ATTR_CLASS = "c";
+
+    static final String ATTR_OID = "d";
     //for map key type
     static final String ATTR_KCLASS = "kc";
     //for map value type
-    static final String ATTR_VCLASS = "kc";
+    static final String ATTR_VCLASS = "vc";
 
 
 
@@ -72,6 +74,20 @@ public class ObjXmlOtpImpl2 {
         public Object createInstance(Class suggestClass) { return null; }
 
         public static class Helper {
+
+            public static ArrayMap<Integer, Object> mmap = new ArrayMap<Integer, Object>();
+            public static void saveObjId(XmlSerializer serializer, Object o) {
+                serializer.attribute(null,ATTR_OID ,Integer.toString(mmap.size()));
+                mmap.put(mmap.size(), o);
+            }
+
+            public static Object getObjById(XmlPullParser parser) {
+
+                String idStr = parser.getAttributeValue(null, ATTR_OID);
+                int id = Integer.valueOf(idStr);
+                return mmap.get(id);
+            }
+            /////////////////////////////////////////
             static final int BASE_POINT = 0xb0;
 
             public static int tagNameToClassCode(String tagName) {
