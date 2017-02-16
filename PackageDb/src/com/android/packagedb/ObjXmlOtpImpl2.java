@@ -76,17 +76,34 @@ public class ObjXmlOtpImpl2 {
         public static class Helper {
 
             public static ArrayMap<Integer, Object> mmap = new ArrayMap<Integer, Object>();
-            public static void saveObjId(XmlSerializer serializer, Object o) {
+
+            public static void saveObjId(XmlSerializer serializer, Object o)
+                throws XmlPullParserException,IOException {
                 serializer.attribute(null,ATTR_OID ,Integer.toString(mmap.size()));
                 mmap.put(mmap.size(), o);
             }
-
-            public static Object getObjById(XmlPullParser parser) {
-
+            public static int getObjById(Object obj) {
+            Set<Integer> keySet = mmap.keySet();
+            Iterator<Integer> iterator = keySet.iterator();
+            while (iterator.hasNext()) {
+                    Integer i = iterator.next();
+                    if (obj == mmap.get(iterator.next()))
+                        return i;
+                }
+                return -1;
+            }
+            public static int getObjIdFromParser(XmlPullParser parser) {
                 String idStr = parser.getAttributeValue(null, ATTR_OID);
-                int id = Integer.valueOf(idStr);
+                return Integer.valueOf(idStr);
+            }
+
+            public static void recordObj(Object obj, int id) {
+                mmap.put(id, obj);
+            }
+            public static Object getObjById(int id) {
                 return mmap.get(id);
             }
+
             /////////////////////////////////////////
             static final int BASE_POINT = 0xb0;
 
