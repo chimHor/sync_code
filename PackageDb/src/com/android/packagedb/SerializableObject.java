@@ -1,4 +1,5 @@
 
+package com.android.packagedb;
 
 import java.util.ArrayList;
 
@@ -15,8 +16,9 @@ import java.security.cert.CertificateFactory;
 public class SerializableObject implements Serializable {
     public ArrayList<BytesWraper> wraperList = new ArrayList<BytesWraper>();
 
-    public class BytesWraper implements Serializable {
+    public static class BytesWraper implements Serializable {
         public byte[] content;
+        public BytesWraper(byte[] bytes) {content = bytes;}
     }
 
     public static byte[] toBytes(SerializableObject me) {

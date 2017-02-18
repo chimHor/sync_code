@@ -1,9 +1,8 @@
 
 package com.android.packagedb;
 
-import android.content.pm.PackageParser.Activity;
+import android.content.pm.PackageParser.PermissionGroup;
 import android.content.pm.PackageParser.Package;
-import android.content.pm.ActivityInfo;
 import android.util.ArraySet;
 import android.util.Log;
 
@@ -15,39 +14,30 @@ import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 import java.io.IOException;
 
-
+import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt.Helper;
 import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt;
 import com.android.packagedb.ObjXmlOtpImpl2.ObjXmlOpt;
 
-public class ActivityXmlOpt extends ObjXmlOpt {
-
-    static final String ATTR_ARG1 = "a1";
+public class PermissionGroupXmlOpt extends ObjXmlOpt {
 
     static final ArraySet<String> keyFields = new ArraySet<String>();
     static final ArraySet<String> skipFields = new ArraySet<String>();
+
+    static final String ATTR_ARG1 = "a1";
     int pkgRefId = -1;
     static {
-        skipFields.add("metaData");
     }
 
-    public ActivityXmlOpt() {
-        mClass = Activity.class;
+    public PermissionGroupXmlOpt() {
+        mClass = PermissionGroup.class;
     }
-
-    @Override
-    public boolean needSaveRef() {
-        return true;
-    }
-
     @Override
     public Object createInstance(String suggestClass) {
-        final Package pkg = (Package)Helper.getObjByRefId(pkgRefId);
-        return new Activity(pkg, new ActivityInfo());
+        return new PermissionGroup((Package)Helper.getObjByRefId(pkgRefId));
     }
     @Override
     public Object createInstance(Class suggestClass) {
-        final Package pkg = (Package)Helper.getObjByRefId(pkgRefId);
-        return new Activity(pkg, new ActivityInfo());
+        return new PermissionGroup((Package)Helper.getObjByRefId(pkgRefId));
     }
 
     @Override
@@ -60,10 +50,11 @@ public class ActivityXmlOpt extends ObjXmlOpt {
             pkgRefId = -1;
         }
     }
+
     @Override
     public void serializeFieldsBefore(XmlSerializer serializer, Object obj)
         throws XmlPullParserException,IOException {
-        Activity a = (Activity) obj;
+        PermissionGroup a = (PermissionGroup) obj;
         int refId = Helper.getRefIdByObj(a.owner);
         serializer.attribute(null,ATTR_ARG1,Integer.toString(refId));
     }
