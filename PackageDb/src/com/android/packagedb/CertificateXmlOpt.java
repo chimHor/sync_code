@@ -79,8 +79,9 @@ public class CertificateXmlOpt extends ObjXmlOpt {
         try {
         Certificate c = (Certificate) obj;
         BytesWraper w = new BytesWraper(c.getEncoded());
-        Helper.getSerializableObject().wraperList.add(w);
         int index = Helper.getSerializableObject().wraperList.size();
+        Log.w("xxx", "wraperList add index "+ index);
+        Helper.getSerializableObject().wraperList.add(w);
         Helper.saveTag(serializer, mTagName, Integer.toString(index),field!=null?field.getName():null);
         } catch (Exception e) {
             e.printStackTrace();

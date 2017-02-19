@@ -9,6 +9,12 @@ import java.lang.reflect.Field;
 
 import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt;
 import com.android.packagedb.ObjXmlOtpImpl2.ObjXmlOpt;
+import com.android.packagedb.ObjXmlOtpImpl2;
+
+
+import org.xmlpull.v1.XmlSerializer;
+import org.xmlpull.v1.XmlPullParserException;
+import java.io.IOException;
 
 public class PackageXmlOpt extends ObjXmlOpt {
 
@@ -25,6 +31,9 @@ public class PackageXmlOpt extends ObjXmlOpt {
 
         skipFields.add("mSignatures");
         skipFields.add("mSigningKeys");
+
+
+        skipFields.add("applicationInfo");
     }
 
     public PackageXmlOpt() {
@@ -42,6 +51,21 @@ public class PackageXmlOpt extends ObjXmlOpt {
     @Override
     public Object createInstance(Class suggestClass) {
         return new PackageParser.Package("");
+    }
+
+    public boolean serializeFieldsBefore(XmlSerializer serializer, Object obj)
+        throws XmlPullParserException,IOException {
+        try {
+        Field field = PackageParser.Package.class.getField("applicationInfo");
+        Object appInfo = field.get(obj);
+        int subClassCode = Helper.classToCode(field.getType());
+        ObjXmlOtpImpl2.optArray[subClassCode].serialize(serializer, appInfo, field);
+        } catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     @Override

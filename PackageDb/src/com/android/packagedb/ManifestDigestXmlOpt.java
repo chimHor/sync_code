@@ -30,7 +30,7 @@ public class ManifestDigestXmlOpt extends ObjXmlOpt {
         if (f != null) {
             f.setAccessible(true);
         }
-        t = c.getConstructor(byte[].class);
+        t = c.getDeclaredConstructor(byte[].class);
         if (t != null) {
             t.setAccessible(true);
         }
@@ -67,8 +67,9 @@ public class ManifestDigestXmlOpt extends ObjXmlOpt {
         try{
         ManifestDigest m = (ManifestDigest) obj;
         BytesWraper w = new BytesWraper((byte[])f.get(m));
-        Helper.getSerializableObject().wraperList.add(w);
         int index = Helper.getSerializableObject().wraperList.size();
+        Log.w("xxx", "wraperList add index "+ index);
+        Helper.getSerializableObject().wraperList.add(w);
         Helper.saveTag(serializer, mTagName, Integer.toString(index),field!=null?field.getName():null);
         } catch (Exception e) {
             e.printStackTrace();

@@ -78,8 +78,8 @@ public class MainActivity extends Activity {
         b = (Button) findViewById(R.id.but);
         b.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                            testXmlpkg();
-                            //ttt();
+                            //testXmlpkg();
+                            ttt();
                         }
                 });
 
@@ -97,7 +97,17 @@ public class MainActivity extends Activity {
         pkg = pp.parsePackage(apkfile, flags);
         pp.collectCertificates(pkg,flags);
         pp.collectManifestDigest(pkg);
-        Log.w("xxx","xxx");
+
+        ObjXmlOtpImpl2 x = new ObjXmlOtpImpl2();
+        String s = x.serializerPkg(pkg);
+        Log.e("xxx", "----  string size :  " + s.length()+ "  -----------------------------");
+        tv.setText(s);
+
+        PackageParser.Package pkg2 = null;
+        pkg2 = (PackageParser.Package)x.parsePkg(s);
+        if (pkg2 != null) {
+            Log.e("xxx", pkg2.toString());
+        }
         } catch (PackageParser.PackageParserException e) {
             e.printStackTrace();
         }

@@ -28,17 +28,24 @@ import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 import com.android.internal.util.FastXmlSerializer;
 
+import java.io.ObjectOutputStream;
+import java.io.ObjectInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
+
+
 
 import android.util.Log;
 
 public class ObjXmlOtpImpl2 {
 
-    static final boolean DEBUG = true;
+    static final boolean DEBUG = false;
     static final String TAG = "ObjXmlOtpImpl2";
 
     static final String ATTR_PARA = "p";
     static final String ATTR_SIZE = "s";
     static final String ATTR_CLASS = "c";
+    static final String ATTR_REF = "r";
 
     static final String ATTR_OID = "d";
     //for map key type
@@ -87,7 +94,7 @@ public class ObjXmlOtpImpl2 {
                 Iterator<Integer> iterator = keySet.iterator();
                 while (iterator.hasNext()) {
                     Integer i = iterator.next();
-                    if (obj == mmap.get(iterator.next()))
+                    if (obj == mmap.get(i))
                         return i;
                 }
                 return -1;
@@ -109,7 +116,7 @@ public class ObjXmlOtpImpl2 {
                 return mmap.get(id);
             }
 
-            public static SerializableObject oo = new SerializableObject();
+            public static SerializableObject oo = null;
             public static SerializableObject getSerializableObject() {return oo;}
 
             /////////////////////////////////////////
@@ -177,6 +184,25 @@ public class ObjXmlOtpImpl2 {
                 }
                 return objT;
             }
+
+            public static int objToCode(Object o) {
+                if (o == null)
+                    return Integer.MIN_VALUE;
+                Class c = o.getClass();
+                if (c.equals(CharSequence.class)) {
+                    c = String.class;
+                    for (int i = 2; i < optArray.length; i++) {
+                        if (c.equals(optArray[i].mClass))
+                            return optArray[i].mClassCode;
+                    }
+                }
+
+                for (int i = 2; i < optArray.length; i++) {
+                    if (optArray[i].mClass.isInstance(o))
+                        return optArray[i].mClassCode;
+                }
+                return OBJ_CODE;
+            }
             public static int classToCode(Class c) {
                 if (c == null)
                     return Integer.MIN_VALUE;
@@ -227,7 +253,7 @@ public class ObjXmlOtpImpl2 {
 
 
     static final AbstractObjXmlOpt[] optArray = {
-        new ObjXmlOpt(),   //0, not allow move
+        new ObjXmlOpt(true),   //0, not allow move
         new ArrayXmlOpt(), //1, not allow move
         new ArrayListXmlOpt(),
         new ArraySetXmlOpt(),
@@ -237,8 +263,18 @@ public class ObjXmlOtpImpl2 {
         new FloatXmlOpt(),
         new LongXmlOpt(),
         new BooleanXmlOpt(),
-        new ApplicationInfoOpt(),
-
+        new PackageXmlOpt(),
+        new ActivityXmlOpt(),
+        new ActivityIntentInfoXmlOpt(),
+        new AuthorityEntryXmlOpt(),
+        new BundleXmlOpt(),
+        new CertificateXmlOpt(),
+        new ManifestDigestXmlOpt(),
+        new PatternMatcherXmlOpt(),
+        new PermissionGroupXmlOpt(),
+        new PermissionXmlOpt(),
+        new PublicKeyXmlOpt(),
+        new ApplicationInfoXmlInfo(),
         // AbstractObjXmlOpt.Helper.BASE_POINT is 0xb0 , so the optArray size must less than 0xff- 0xb0
         // if BASE_POINT is 0xb00, optArray size must less than 0xfff- 0xb00
         };
@@ -1034,8 +1070,13 @@ public class ObjXmlOtpImpl2 {
 
 
     public static class ObjXmlOpt extends AbstractObjXmlOpt {
+        private boolean isobjxmlopt = false;
         public ObjXmlOpt() {
             mClass = null;
+        }
+        public ObjXmlOpt(boolean b) {
+            mClass = null;
+            isobjxmlopt = true;
         }
         public boolean needSaveRef() {
             return false;
@@ -1070,7 +1111,10 @@ public class ObjXmlOtpImpl2 {
             Field f = null;
             try {
                 for(; c != Object.class; c=c.getSuperclass()) {
+                    try {
                     f = c.getDeclaredField(fieldName);
+                    } catch (Exception e) {
+                    }
                     if (f != null) {
                         f.setAccessible(true);
                         break;
@@ -1134,11 +1178,27 @@ public class ObjXmlOtpImpl2 {
             Object objT = null;
             String classCodeStr = parser.getName();
             int classCode = Helper.tagNameToClassCode(classCodeStr);
-            if (classCode > OBJ_CODE ) {
+            if (isobjxmlopt && classCode > OBJ_CODE ) {
                 objT = optArray[classCode].parse(parser, objParent ,f);
                 return objT;
             }
 
+
+            String refId = parser.getAttributeValue(null, ATTR_REF);
+            if (refId != null) {
+                objT = Helper.getObjByRefId(Integer.parseInt(refId));
+                if ( objParent != null && f != null ) {
+                    try {
+                        if (objT == null && (!Modifier.isFinal(f.getModifiers()))) {
+                            f.set(objParent, objT);
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        return null;
+                    }
+                }
+                return objT;
+            }
             final int innerDepth = parser.getDepth();
             collectInfoBeforeCreateInstance(parser);
             if (objT == null) {
@@ -1158,8 +1218,9 @@ public class ObjXmlOtpImpl2 {
             serializer.startTag(null, mTagName).endTag(null, mTagName);
         }
 
-        public void serializeFieldsBefore(XmlSerializer serializer, Object obj)
+        public boolean serializeFieldsBefore(XmlSerializer serializer, Object obj)
             throws XmlPullParserException,IOException {
+            return false;
         }
         public void defaultSerializeFields(XmlSerializer serializer, Object obj)
             throws XmlPullParserException,IOException {
@@ -1235,27 +1296,39 @@ public class ObjXmlOtpImpl2 {
             try {
                 //choose right opt to handle it
                 Class c = obj.getClass();
-                int classCode = Helper.classToCode(c);
-                if (classCode > OBJ_CODE) {
-                    optArray[classCode].serialize(serializer, obj ,field);
-                } else if (classCode < OBJ_CODE) {
-                    return;
-                } else {
-                    // default handler
-                    serializer.startTag(null, mTagName);
-
-                    if (field != null){
-                        serializer.attribute(null,ATTR_PARA,field.getName());
-                    } else {
-                        serializer.attribute(null,ATTR_CLASS,c.getName());
+                //todo object is subclass of opt.mclass ?
+                //int classCode = Helper.classToCode(c);
+                int classCode = Helper.objToCode(obj);
+                if (isobjxmlopt) {
+                    if (classCode > OBJ_CODE) {
+                        optArray[classCode].serialize(serializer, obj ,field);
+                        return;
+                    } else if (classCode < OBJ_CODE) {
+                        return;
                     }
-                    if (needSaveRef()) {
+                }
+                    // default handler
+                serializer.startTag(null, mTagName);
+
+                if (field != null){
+                    serializer.attribute(null,ATTR_PARA,field.getName());
+                } else {
+                    serializer.attribute(null,ATTR_CLASS,c.getName());
+                }
+                if (needSaveRef()) {
+                    int id = Helper.getRefIdByObj(obj);
+                    if ( id > -1) {
+                        serializer.attribute(null,ATTR_REF,Integer.toString(id));
+                        serializer.endTag(null, mTagName);
+                        return;
+                    } else {
                         Helper.saveObjRefId(serializer, obj);
                     }
-                    serializeFieldsBefore(serializer, obj);
-                    defaultSerializeFields(serializer, obj);
-                    serializer.endTag(null, mTagName);
                 }
+                if (!serializeFieldsBefore(serializer, obj)) {
+                    defaultSerializeFields(serializer, obj);
+                }
+                serializer.endTag(null, mTagName);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -1266,13 +1339,22 @@ public class ObjXmlOtpImpl2 {
     XmlPullParserFactory xppFactory;
     XmlPullParser mParser;
     XmlSerializer mSerializer;
-
+    byte[] ooData;
 
     public Object parsePkg(String value) {
         //PackageParser.Package pkg = new PackageParser.Package("");
 
         //todo read serializerobj
         //todo clear Helper mmap
+        try {
+        ByteArrayInputStream inBytes = new ByteArrayInputStream(ooData);
+        if (inBytes.available()>0) {
+            ObjectInputStream in = new ObjectInputStream(inBytes);
+            AbstractObjXmlOpt.Helper.oo = (SerializableObject)in.readObject();
+        }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         Object obj = null;
         try {
@@ -1301,6 +1383,8 @@ public class ObjXmlOtpImpl2 {
         }
 
         //todo clear Helper mmap
+        AbstractObjXmlOpt.Helper.mmap.clear();
+        AbstractObjXmlOpt.Helper.oo = null;
         return obj;
     }
 
@@ -1321,15 +1405,24 @@ public class ObjXmlOtpImpl2 {
         mSerializer.setOutput(writer);
         mSerializer.startDocument(null,true);
         //todo clear Helper mmap and serializerobj
+
+
+
+        AbstractObjXmlOpt.Helper.oo = new SerializableObject();
         optArray[OBJ_CODE].serialize(mSerializer, (Object)pkg, null);
         mSerializer.flush();
+        ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
+        ObjectOutputStream out = new ObjectOutputStream(outBytes);
+        out.writeObject(AbstractObjXmlOpt.Helper.oo);
+        out.close();
+        ooData = outBytes.toByteArray();
+        AbstractObjXmlOpt.Helper.oo = null;
         //todo save serializerobj
         } catch (Exception e) {
             e.printStackTrace();
         }
-
         //todo clear Helper mmap
+        AbstractObjXmlOpt.Helper.mmap.clear();
         return writer.toString();
     }
-
 }

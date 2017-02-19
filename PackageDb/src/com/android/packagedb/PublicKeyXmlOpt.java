@@ -24,15 +24,6 @@ public class PublicKeyXmlOpt extends ObjXmlOpt {
     }
 
     @Override
-    public Object createInstance(String suggestClass) {
-        return new PackageParser.Package("");
-    }
-    @Override
-    public Object createInstance(Class suggestClass) {
-        return new PackageParser.Package("");
-    }
-
-    @Override
     public Object parse(XmlPullParser parser, Object objParent, Field f)
         throws XmlPullParserException,IOException {
         try {

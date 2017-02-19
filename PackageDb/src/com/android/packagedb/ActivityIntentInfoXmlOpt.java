@@ -54,11 +54,12 @@ public class ActivityIntentInfoXmlOpt extends ObjXmlOpt {
     }
 
     @Override
-    public void serializeFieldsBefore(XmlSerializer serializer, Object obj)
+    public boolean serializeFieldsBefore(XmlSerializer serializer, Object obj)
         throws XmlPullParserException,IOException {
         ActivityIntentInfo aInfo = (ActivityIntentInfo) obj;
         int refId = Helper.getRefIdByObj(aInfo.activity);
         serializer.attribute(null,ATTR_ARG1,Integer.toString(refId));
+        return false;
     }
 
     @Override
