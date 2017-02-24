@@ -1,5 +1,19 @@
 package com.android.packagedb.util;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageParser;
+import android.content.pm.PackageParser.PermissionGroup;
+import android.content.pm.ServiceInfo;
+import android.content.pm.ProviderInfo;
+import android.content.pm.InstrumentationInfo;
+import android.content.pm.PermissionInfo;
+import android.content.pm.PermissionGroupInfo;
+import android.content.pm.Signature;
+import android.content.pm.PackageParser.Activity;
+import android.content.pm.PackageParser.Service;
+import android.content.pm.PackageParser.Provider;
+import android.content.pm.PackageParser.Instrumentation;
+import android.content.pm.PackageParser.Permission;
+import android.content.pm.PackageParser.PermissionGroup;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -14,7 +28,7 @@ import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Modifier;
 
-import android.content.pm.Signature;
+
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
@@ -268,15 +282,18 @@ public class PkgSerializer {
         new LongXmlOpt(),
         new BooleanXmlOpt(),
         new PackageXmlOpt(),
-        new ActivityXmlOpt(),
+        new ComponentXmlOpt(Activity.class, ActivityInfo.class),
+        new ComponentXmlOpt(Service.class, ServiceInfo.class),
+        new ComponentXmlOpt(Provider.class, ProviderInfo.class),
+        new ComponentXmlOpt(Instrumentation.class, InstrumentationInfo.class),
         new ActivityIntentInfoXmlOpt(),
         new AuthorityEntryXmlOpt(),
         new BundleXmlOpt(),
         new CertificateXmlOpt(),
         new ManifestDigestXmlOpt(),
         new PatternMatcherXmlOpt(),
-        new PermissionGroupXmlOpt(),
-        new PermissionXmlOpt(),
+        new ComponentXmlOpt(Permission.class, PermissionInfo.class),
+        new ComponentXmlOpt(PermissionGroup.class, PermissionGroupInfo.class),
         new PublicKeyXmlOpt(),
         new ApplicationInfoXmlInfo(),
         // AbstractObjXmlOpt.Helper.BASE_POINT is 0xb0 , so the optArray size must less than 0xff- 0xb0
