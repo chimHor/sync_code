@@ -1,5 +1,5 @@
 
-package com.android.packagedb;
+package com.android.packagedb.util;
 
 import android.content.pm.PackageParser;
 import android.util.ArraySet;
@@ -7,9 +7,9 @@ import android.util.Log;
 
 import java.lang.reflect.Field;
 
-import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt;
-import com.android.packagedb.ObjXmlOtpImpl2.ObjXmlOpt;
-import com.android.packagedb.ObjXmlOtpImpl2;
+import com.android.packagedb.util.PkgSerializer;
+import com.android.packagedb.util.PkgSerializer.AbstractObjXmlOpt;
+import com.android.packagedb.util.PkgSerializer.ObjXmlOpt;
 
 
 import org.xmlpull.v1.XmlSerializer;
@@ -59,7 +59,7 @@ public class PackageXmlOpt extends ObjXmlOpt {
         Field field = PackageParser.Package.class.getField("applicationInfo");
         Object appInfo = field.get(obj);
         int subClassCode = Helper.classToCode(field.getType());
-        ObjXmlOtpImpl2.optArray[subClassCode].serialize(serializer, appInfo, field);
+        PkgSerializer.optArray[subClassCode].serialize(serializer, appInfo, field);
         } catch (NoSuchFieldException e) {
             e.printStackTrace();
         } catch (IllegalAccessException e) {

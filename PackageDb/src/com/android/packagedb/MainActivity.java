@@ -29,6 +29,7 @@ import android.graphics.drawable.Drawable;
 import java.util.List;
 import java.util.ArrayList;
 
+import android.content.Context;
 import android.content.res.TypedArray;
 
 import android.database.sqlite.SQLiteOpenHelper;
@@ -45,6 +46,10 @@ import java.lang.reflect.Constructor;
 import android.os.Debug;
 
 
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ByteArrayOutputStream;
@@ -55,6 +60,10 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.security.cert.CertificateFactory;
 //import org.apache.harmony.security.utils.JarUtils.VerbatimX509Certificate;
+
+import com.android.packagedb.test.TestCompareHelper;
+import com.android.packagedb.test.TestObj;
+import com.android.packagedb.util.PkgSerializer;
 
 public class MainActivity extends Activity {
     static final String TAG = "PackageDbActivity";
@@ -67,7 +76,6 @@ public class MainActivity extends Activity {
     TextView tv;
     Button b;
     public int i = 0;
-    PackageParser.Package pkg = null;
     @Override
     public void onCreate(Bundle icycle) {
         super.onCreate(icycle);
@@ -78,7 +86,7 @@ public class MainActivity extends Activity {
         b = (Button) findViewById(R.id.but);
         b.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
-                            //testXmlpkg();
+                            //testPkg();
                             ttt();
                         }
                 });
@@ -94,26 +102,39 @@ public class MainActivity extends Activity {
         try {
         int flags = PackageParser.PARSE_IS_SYSTEM | PackageParser.PARSE_MUST_BE_APK;
         File apkfile = new File(pkgInstallerPath);
-        pkg = pp.parsePackage(apkfile, flags);
+        PackageParser.Package pkg = pp.parsePackage(apkfile, flags);
         pp.collectCertificates(pkg,flags);
         pp.collectManifestDigest(pkg);
 
-        ObjXmlOtpImpl2 x = new ObjXmlOtpImpl2();
+        PkgSerializer x = new PkgSerializer();
         String s = x.serializerPkg(pkg);
+        
         Log.e("xxx", "----  string size :  " + s.length()+ "  -----------------------------");
+        writeFile(s);
         tv.setText(s);
 
         PackageParser.Package pkg2 = null;
         pkg2 = (PackageParser.Package)x.parsePkg(s);
-        if (pkg2 != null) {
-            Log.e("xxx", pkg2.toString());
-        }
+        boolean b = TestCompareHelper.compare(pkg, pkg2);
+        Log.w("xxx", " pkg parse cmp ret : "+ b);
         } catch (PackageParser.PackageParserException e) {
             e.printStackTrace();
         }
 
     }
 
+    private void writeFile(String s) {
+        try{
+            
+            //true = append file
+            FileOutputStream outputStream = this.openFileOutput("pkg.xml", Context.MODE_PRIVATE);
+            outputStream.write(s.getBytes());
+            outputStream.close();
+           }catch(IOException e){
+            e.printStackTrace();
+           }
+    }
+    
     public void initTest() {
 
         ppdManager = new PackageParserDb(this);
@@ -126,7 +147,7 @@ public class MainActivity extends Activity {
 
     }
     public void testXmlObj() {
-        ObjXmlOtpImpl2 x = new ObjXmlOtpImpl2();
+        PkgSerializer x = new PkgSerializer();
         TestObj o = TestObj.createRandomTestObj();
         Log.e("xxx", o.toString());
         String s = x.serializerPkg(o);
@@ -144,97 +165,33 @@ public class MainActivity extends Activity {
         }
     }
 
-
-    public static class Holder implements Serializable {
-        //public byte[] mDigest;
-        public Certificate[][] mCertificates;
-        public Holder(PackageParser.Package pkg) {
-            mCertificates = pkg.mCertificates;
-        }
-    }
-
-    public static class Holder2 implements Serializable {
-        //public byte[] mDigest;
-        public final byte[] bytes;
-        public Holder2(byte[] array) {
-            bytes = array;
-        }
-    }
-
-    public void testXmlpkg() {
+    public void testPkg() {
         /*
         XmlPkgSerializer x = new XmlPkgSerializer();
         */
-        ObjXmlOtpImpl x = new ObjXmlOtpImpl();
         PackageParser pp = new PackageParser();
         PackageParser.Package pkg = null;
+        PackageParser.Package pkg2 = null;
         File apkfile = new File(pkgInstallerPath);
         int flags = PackageParser.PARSE_IS_SYSTEM | PackageParser.PARSE_MUST_BE_APK;
+        
         try {
         pkg = pp.parsePackage(apkfile, flags);
         pp.collectCertificates(pkg,flags);
         pp.collectManifestDigest(pkg);
-        Holder h = new Holder(pkg);
-
-        X509Certificate[] certs = new X509Certificate[h.mCertificates.length];
-        CertificateFactory cf = CertificateFactory.getInstance("X.509");
-        Class c = org.apache.harmony.security.utils.JarUtils.class;
-        Class[] cs = c.getDeclaredClasses();
-        Class c2 = null;
-        for (Class c1 : cs) {
-            if (c1.getName().contains("VerbatimX509Certificate")) {
-                c2 = c1;
-                break;
-            }
-        }
-        Constructor t = null;
-        if (c2 != null) {
-            Log.e("xxx", "c2:"+c2.getName());
-            Constructor[] ts = c2.getConstructors();
-            //t = c2.getDeConstructor(X509Certificate.class, byte[].class);
-            t = ts[0];
-            if (t != null)
-                Log.e("xxx", "find c2: t");
-        }
-        t.setAccessible(true);
-        int i = 0;
-        for (Certificate encCert : h.mCertificates[0]) {
-            final byte[] encoded = encCert.getEncoded();
-            final InputStream is = new ByteArrayInputStream(encoded);
-            certs[i++] = (X509Certificate)t.newInstance(cf.generateCertificate(is), encoded);
-        }
-
-        Holder2 hh = new Holder2(certs[0].getEncoded());
-        ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
-        ObjectOutputStream out = new ObjectOutputStream(outBytes);
-        out.writeObject(hh);
-        out.close();
-        ByteArrayInputStream inBytes = new ByteArrayInputStream(outBytes.toByteArray());
-        Holder2 h2 = null;
-        if (inBytes.available()>0) {
-            ObjectInputStream in = new ObjectInputStream(inBytes);
-            h2 = (Holder2)in.readObject();
-        }
-
-        Log.e("xxx", "-------------------------------------");
+	
+        pkg2 = pp.parsePackage(apkfile, flags);
+        pp.collectCertificates(pkg2,flags);
+        pp.collectManifestDigest(pkg2);
+        boolean b = TestCompareHelper.compareInner(pkg, pkg2);
+        Log.w("xxx","res : "+ b);
+        //PackageParser.Package pkg2 = x.parsePkg(s);
+        //Log.e("xxx", pkgToString(pkg2));
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        /*
-        Log.e("xxx", pkgToString(pkg));
-        String s = x.serializerPkg(pkg);
-        Log.e("xxx", s);
-        Log.e("xxx", "-------------------------------------");
-        tv.setText(s);
-        */
-        //PackageParser.Package pkg2 = x.parsePkg(s);
-        //Log.e("xxx", pkgToString(pkg2));
     }
 
-    private String pkgToString(PackageParser.Package pkg) {
-        return ""+pkg.packageName+" "+pkg.baseCodePath+" "+pkg.mVersionCode+" "+pkg.baseHardwareAccelerated+" "+pkg.mLastPackageUsageTimeInMills+" ";
-    }
 
     public void testAddpkg() {
         ppdManager.clear();

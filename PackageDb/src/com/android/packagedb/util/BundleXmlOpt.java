@@ -1,5 +1,5 @@
 
-package com.android.packagedb;
+package com.android.packagedb.util;
 
 import android.util.ArraySet;
 import android.util.Log;
@@ -8,8 +8,8 @@ import android.os.Bundle;
 
 import java.lang.reflect.Field;
 
-import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt;
-import com.android.packagedb.ObjXmlOtpImpl2.ObjXmlOpt;
+import com.android.packagedb.util.PkgSerializer.AbstractObjXmlOpt;
+import com.android.packagedb.util.PkgSerializer.ObjXmlOpt;
 
 public class BundleXmlOpt extends ObjXmlOpt {
 

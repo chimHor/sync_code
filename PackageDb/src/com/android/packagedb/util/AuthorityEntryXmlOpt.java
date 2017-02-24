@@ -1,5 +1,5 @@
 
-package com.android.packagedb;
+package com.android.packagedb.util;
 
 import android.content.pm.PackageParser.Package;
 import android.util.ArraySet;
@@ -15,9 +15,9 @@ import org.xmlpull.v1.XmlSerializer;
 
 import java.io.IOException;
 
-import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt.Helper;
-import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt;
-import com.android.packagedb.ObjXmlOtpImpl2.ObjXmlOpt;
+import com.android.packagedb.util.PkgSerializer.AbstractObjXmlOpt;
+import com.android.packagedb.util.PkgSerializer.ObjXmlOpt;
+import com.android.packagedb.util.PkgSerializer.AbstractObjXmlOpt.Helper;
 
 public class AuthorityEntryXmlOpt extends ObjXmlOpt {
 
@@ -46,12 +46,12 @@ public class AuthorityEntryXmlOpt extends ObjXmlOpt {
                 String subClassCodeStr = parser.getName();
                 count++;
                 int subClassCode = Helper.tagNameToClassCode(subClassCodeStr);
-                String name = parser.getAttributeValue(null,ObjXmlOtpImpl2.ATTR_PARA);
+                String name = parser.getAttributeValue(null,PkgSerializer.ATTR_PARA);
                 if (name == null) {
                     continue;
                 }
                 try {
-                    if (subClassCode == ObjXmlOtpImpl2.INT_CODE) {
+                    if (subClassCode == PkgSerializer.INT_CODE) {
                         objPort = Helper.parseInt(parser);
                     } else if (name.equals("mOrigHost")) {
                         objOrgHost = parser.nextText();

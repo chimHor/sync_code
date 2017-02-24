@@ -1,4 +1,4 @@
-package com.android.packagedb;
+package com.android.packagedb.test;
 
 import android.util.ArrayMap;
 import android.util.ArraySet;

@@ -1,5 +1,5 @@
 
-package com.android.packagedb;
+package com.android.packagedb.util;
 
 import android.content.pm.PackageParser;
 import android.util.ArraySet;
@@ -14,8 +14,9 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 
 import java.security.PublicKey;
-import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt;
-import com.android.packagedb.ObjXmlOtpImpl2.ObjXmlOpt;
+
+import com.android.packagedb.util.PkgSerializer.AbstractObjXmlOpt;
+import com.android.packagedb.util.PkgSerializer.ObjXmlOpt;
 
 public class PublicKeyXmlOpt extends ObjXmlOpt {
 

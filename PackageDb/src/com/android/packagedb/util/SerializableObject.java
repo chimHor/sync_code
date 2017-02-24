@@ -1,5 +1,5 @@
 
-package com.android.packagedb;
+package com.android.packagedb.util;
 
 import java.util.ArrayList;
 

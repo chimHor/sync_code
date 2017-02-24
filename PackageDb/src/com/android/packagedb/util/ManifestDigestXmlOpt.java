@@ -1,5 +1,5 @@
 
-package com.android.packagedb;
+package com.android.packagedb.util;
 
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -16,9 +16,9 @@ import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
 import java.io.IOException;
 
-import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt.Helper;
-import com.android.packagedb.ObjXmlOtpImpl2.ObjXmlOpt;
-import com.android.packagedb.SerializableObject.BytesWraper;
+import com.android.packagedb.util.PkgSerializer.ObjXmlOpt;
+import com.android.packagedb.util.PkgSerializer.AbstractObjXmlOpt.Helper;
+import com.android.packagedb.util.SerializableObject.BytesWraper;
 
 public class ManifestDigestXmlOpt extends ObjXmlOpt {
     static Constructor t = null;

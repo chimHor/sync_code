@@ -1,5 +1,5 @@
-package com.android.packagedb;
-//import android.content.pm.PackageParser;
+package com.android.packagedb.util;
+import android.content.pm.PackageParser;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -14,9 +14,13 @@ import java.lang.reflect.Array;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Modifier;
 
+import android.content.pm.Signature;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
+import java.security.PublicKey;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.util.ArrayList;
 import java.util.Set;
 import java.util.Iterator;
@@ -37,7 +41,7 @@ import java.io.ByteArrayInputStream;
 
 import android.util.Log;
 
-public class ObjXmlOtpImpl2 {
+public class PkgSerializer {
 
     static final boolean DEBUG = false;
     static final String TAG = "ObjXmlOtpImpl2";
@@ -556,7 +560,7 @@ public class ObjXmlOtpImpl2 {
                         Helper.saveTag(serializer, Helper.classCodeToTagName(FLOAT_CODE), Integer.toString(Float.floatToRawIntBits(Array.getFloat(obj,i))),null);
                     }
                 } else {
-                    optArray[OBJ_CODE].serialize(serializer, Array.get(obj, i), null);
+                    optArray[itemClassCode].serialize(serializer, Array.get(obj, i), null);
                 }
 
             }
@@ -758,7 +762,16 @@ public class ObjXmlOtpImpl2 {
             }
             return obj;
         }
-
+        @Override
+        public Object createInstance(Class suggestClass) {
+            Object obj = null;
+            try {
+                obj = mClass.newInstance();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return obj;
+        }
         public Object parse(XmlPullParser parser, Object objParent, Field f)
             throws XmlPullParserException,IOException {
             if ( parser.getEventType() != XmlPullParser.START_TAG ) {
@@ -854,7 +867,17 @@ public class ObjXmlOtpImpl2 {
             return obj;
         }
 
-
+        @Override
+        public Object createInstance(Class suggestClass) {
+            Object obj = null;
+            try {
+                obj = mClass.newInstance();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return obj;
+        }
+        
         public Object parse(XmlPullParser parser, Object objParent, Field f)
             throws XmlPullParserException,IOException {
             if ( parser.getEventType() != XmlPullParser.START_TAG ) {
@@ -979,6 +1002,17 @@ public class ObjXmlOtpImpl2 {
             return obj;
         }
 
+        @Override
+        public Object createInstance(Class suggestClass) {
+            Object obj = null;
+            try {
+                obj = mClass.newInstance();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return obj;
+        }
+        
         public Object parse(XmlPullParser parser, Object objParent, Field f)
             throws XmlPullParserException,IOException {
 
@@ -1101,8 +1135,19 @@ public class ObjXmlOtpImpl2 {
 
             return o;
         }
+        
         @Override
-        public Object createInstance(Class suggestClass) { return null; }
+        public Object createInstance(Class suggestClass) { 
+            Object o = null;
+            try {
+                o = mClass.newInstance();
+            } catch (InstantiationException e) {
+                e.printStackTrace();
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
+            }
+            return o;
+        }
 
         protected boolean handleSerializeSpField(Object o, Field field, String fieldName) {return false;}
 
@@ -1225,10 +1270,11 @@ public class ObjXmlOtpImpl2 {
         public void defaultSerializeFields(XmlSerializer serializer, Object obj)
             throws XmlPullParserException,IOException {
                 Class c = obj.getClass();
+                ArraySet<String> fNames = new ArraySet<String>();
                 for(; c != Object.class; c=c.getSuperclass()) {
                     //Field[] fs = c.getDeclaredFields();
-                    Field[] fields = c.getFields();
-
+                    Field[] fields = c.getDeclaredFields();
+                    
                     for (Field f : fields) {
                         f.setAccessible(true);
                         //base type
@@ -1246,8 +1292,13 @@ public class ObjXmlOtpImpl2 {
                             continue;
                         }
                         Class subClass = f.getType();
-                        int subClassCode = Helper.classToCode(subClass);
+                        int subClassCode = Helper.classToCode(subClass);  
                         String fieldName = f.getName();
+                        if (fNames.contains(fieldName)) {
+                        	continue;
+                        } else {
+                        	fNames.add(fieldName);
+                        }
                         if (handleSerializeSpField(obj, f, fieldName)) {
                             continue;
                         }
@@ -1341,6 +1392,16 @@ public class ObjXmlOtpImpl2 {
     XmlSerializer mSerializer;
     byte[] ooData;
 
+    private static Signature[] convertToSignatures(Certificate[][] certs)
+            throws CertificateEncodingException {
+        final Signature[] res = new Signature[certs.length];
+        for (int i = 0; i < certs.length; i++) {
+            res[i] = new Signature(certs[i]);
+        }
+        return res;
+    }
+    
+    
     public Object parsePkg(String value) {
         //PackageParser.Package pkg = new PackageParser.Package("");
 
@@ -1385,6 +1446,20 @@ public class ObjXmlOtpImpl2 {
         //todo clear Helper mmap
         AbstractObjXmlOpt.Helper.mmap.clear();
         AbstractObjXmlOpt.Helper.oo = null;
+        
+        if (obj != null && obj instanceof PackageParser.Package) {
+        	Log.w("xxx", " pkg convert signatures");
+        	PackageParser.Package pkg = (PackageParser.Package) obj;
+        	try {
+        		pkg.mSignatures = convertToSignatures(pkg.mCertificates);
+        	} catch (CertificateEncodingException e) {
+        		e.printStackTrace();
+        	}
+            pkg.mSigningKeys = new ArraySet<PublicKey>();
+            for (int i=0; i < pkg.mCertificates.length; i++) {
+                pkg.mSigningKeys.add(pkg.mCertificates[i][0].getPublicKey());
+            }
+        }
         return obj;
     }
 

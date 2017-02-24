@@ -1,5 +1,5 @@
 
-package com.android.packagedb;
+package com.android.packagedb.util;
 
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
@@ -18,9 +18,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
-import com.android.packagedb.ObjXmlOtpImpl2.AbstractObjXmlOpt.Helper;
-import com.android.packagedb.ObjXmlOtpImpl2.ObjXmlOpt;
-import com.android.packagedb.SerializableObject.BytesWraper;
+import com.android.packagedb.util.PkgSerializer.ObjXmlOpt;
+import com.android.packagedb.util.PkgSerializer.AbstractObjXmlOpt.Helper;
+import com.android.packagedb.util.SerializableObject.BytesWraper;
 
 public class CertificateXmlOpt extends ObjXmlOpt {
     static Constructor t = null;
