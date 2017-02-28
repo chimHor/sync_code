@@ -34,7 +34,7 @@ public class PackageGhost implements Serializable {
     public int[] splitRevisionCodes;
     public int[] splitFlags;
     public boolean baseHardwareAccelerated;
-    
+
     //1
     public final ApplicationInfo applicationInfo = new ApplicationInfo();
     public final ArrayList<Permission> permissions = new ArrayList<Permission>(0);
@@ -44,7 +44,7 @@ public class PackageGhost implements Serializable {
     public final ArrayList<Provider> providers = new ArrayList<Provider>(0);
     public final ArrayList<Service> services = new ArrayList<Service>(0);
     public final ArrayList<Instrumentation> instrumentation = new ArrayList<Instrumentation>(0);
-    
+
     //2
     public final ArrayList<String> requestedPermissions = new ArrayList<String>();
     public final ArrayList<Boolean> requestedPermissionsRequired = new ArrayList<Boolean>();
@@ -66,7 +66,7 @@ public class PackageGhost implements Serializable {
     public String mVersionName;
     public String mSharedUserId;
     public int mSharedUserLabel;
-    
+
     //5
     public Signature[] mSignatures;
     public Certificate[][] mCertificates;
@@ -106,9 +106,9 @@ public class PackageGhost implements Serializable {
 
     //12
     public String cpuAbiOverride;
-    
-    
-    
+
+
+
     public Package toPackage(){
     	Package pkg = new Package(packageName);
     	//0
@@ -120,10 +120,18 @@ public class PackageGhost implements Serializable {
         pkg.splitRevisionCodes=splitRevisionCodes;
         pkg.splitFlags=splitFlags;
         pkg.baseHardwareAccelerated=baseHardwareAccelerated;
-    	
+
         //1
-        
-        
+        //pkg.applicationInfo = new ApplicationInfo();
+        //pkg.permissions = new ArrayList<Permission>(0);
+        //pkg.permissionGroups = new ArrayList<PermissionGroup>(0);
+        //pkg.activities = new ArrayList<Activity>(0);
+        //pkg.receivers = new ArrayList<Activity>(0);
+        //pkg.providers = new ArrayList<Provider>(0);
+        //pkg.services = new ArrayList<Service>(0);
+        //pkg.instrumentation = new ArrayList<Instrumentation>(0);
+
+
         //2
         pkg.requestedPermissions.addAll(requestedPermissions);
         pkg.requestedPermissionsRequired.addAll(requestedPermissionsRequired);
@@ -131,15 +139,56 @@ public class PackageGhost implements Serializable {
         pkg.libraryNames = Helper.add(pkg.libraryNames, libraryNames);
         pkg.usesLibraries = Helper.add(pkg.usesLibraries, usesLibraries);
         pkg.usesOptionalLibraries = Helper.add(pkg.usesOptionalLibraries, usesOptionalLibraries);
-        
-        /*
-        public ArrayList<String> usesOptionalLibraries = null;
-        public String[] usesLibraryFiles = null;
-        public ArrayList<ActivityIntentInfo> preferredActivityFilters = null;
-        public ArrayList<String> mOriginalPackages = null;
-        public String mRealPackage = null;
-        public ArrayList<String> mAdoptPermissions = null;
-        */
+        pkg.usesLibraryFiles = Helper.add(pkg.usesLibraryFiles, usesLibraryFiles);
+        pkg.mOriginalPackages = Helper.add(pkg.mOriginalPackages, mOriginalPackages);
+        //pkg.preferredActivityFilters
+        pkg.mRealPackage = mRealPackage;
+        pkg.mAdoptPermissions = Helper.add(pkg.mAdoptPermissions, mAdoptPermissions);
+        //3
+        //pkg.mAppMetaData = 
+
+        //4
+        pkg.mVersionCode = mVersionCode;
+        pkg.mVersionName = mVersionName;
+        pkg.mSharedUserId = mSharedUserId;
+        pkg.mSharedUserLabel = mSharedUserLabel;
+
+        //5
+        //pkg.mSignatures;
+        //pkg.mCertificates;
+
+        //6
+        pkg.mPreferredOrder = mPreferredOrder;
+        pkg.mDexOptPerformed = Helper.add(pkg.mDexOptPerformed, mDexOptPerformed);
+        pkg.mLastPackageUsageTimeInMills = mLastPackageUsageTimeInMills;
+        //pkg.mExtras;
+        pkg.mOperationPending = mOperationPending;
+
+        //7
+        //pkg.configPreferences;
+        //pkg.reqFeatures;
+        //pkg.featureGroups;
+
+        //8
+        pkg.installLocation = installLocation;
+        pkg.coreApp = coreApp;
+        pkg.mRequiredForAllUsers = mRequiredForAllUsers;
+        pkg.mRestrictedAccountType = mRestrictedAccountType;
+        pkg.mRequiredAccountType = mRestrictedAccountType;
+
+        //9
+        //pkg.manifestDigest;
+
+        //10
+        pkg.mOverlayTarget = mOverlayTarget;
+        pkg.mOverlayPriority = mOverlayPriority;
+        pkg.mTrustedOverlay = mTrustedOverlay;
+
+        //11
+        //pkg.mSigningKeys;
+        //pkg.mUpgradeKeySets;
+        //pkg.mKeySetMapping;
+
     	//12
         pkg.cpuAbiOverride=cpuAbiOverride;
     	return pkg;
