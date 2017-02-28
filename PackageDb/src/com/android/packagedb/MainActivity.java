@@ -24,6 +24,7 @@ import android.app.Activity;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.SystemClock;
 import android.util.Log;
 import android.graphics.drawable.Drawable;
 import java.util.List;
@@ -71,7 +72,7 @@ public class MainActivity extends Activity {
     PackageParserDataManager ppdManager;
     //File[] apps;
 
-    final String pkgInstallerPath = "/system/app/PackageInstaller";
+    final String pkgInstallerPath = "/system/app/Gallery2";
     final String pkgInstallerName = "com.android.packageinstaller";
     TextView tv;
     Button b;
@@ -87,7 +88,8 @@ public class MainActivity extends Activity {
         b.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                             //testPkg();
-                            ttt();
+                			cmpSystemApp();
+                			//ttt();
                         }
                 });
 
@@ -97,6 +99,47 @@ public class MainActivity extends Activity {
 //        testDbVersion();
     }
 
+    public void cmpSystemApp() {
+    	final File systemAppDir = new File("/system/app");
+    	final File[] files = systemAppDir.listFiles();
+    	PackageParser pp = new PackageParser();
+    	int flags = PackageParser.PARSE_IS_SYSTEM | PackageParser.PARSE_MUST_BE_APK;
+    	PkgSerializer x = new PkgSerializer();
+    	int suc = 0;
+    	long t= 0;
+    	for (File file : files) {
+    		try {
+    		PackageParser.Package pkg = pp.parsePackage(file, flags);
+    		pp.collectCertificates(pkg,flags);
+            pp.collectManifestDigest(pkg);
+            String s = x.serializerPkg(pkg);
+            writeFile(s);
+            //Log.e("xxx", file.toString() + "----  string size :  " + s.length()+ "  -----------------------------");
+            PackageParser.Package pkg2 = null;
+            long t1 = SystemClock.uptimeMillis();
+            Log.e("xxx",file.toString()+"time mark");
+            //Debug.startMethodTracing(file.getName());
+            pkg2 = (PackageParser.Package)x.parsePkg(s);
+            //Debug.stopMethodTracing();
+            long t2 = SystemClock.uptimeMillis();
+            t += t2-t1;
+            Log.e("xxx",file.toString()+"time mark2");
+            boolean b = TestCompareHelper.compare(pkg, pkg2);
+            if (!b) {
+            Log.w("xxx", " pkg " + file.toString()+"parse cmp ret : "+ b);
+            writeFile(s);
+            break;
+            } else  {
+            	suc +=1;
+            }
+            } catch (PackageParser.PackageParserException e) {
+                e.printStackTrace();
+            }
+    	}
+    	Log.w("xxx", "suc : "+ suc + " t : "+ t);
+    	
+    }
+    
     public void ttt() {
         PackageParser pp = new PackageParser();
         try {
@@ -109,7 +152,7 @@ public class MainActivity extends Activity {
         PkgSerializer x = new PkgSerializer();
         String s = x.serializerPkg(pkg);
         
-        Log.e("xxx", "----  string size :  " + s.length()+ "  -----------------------------");
+        //Log.e("xxx", "----  string size :  " + s.length()+ "  -----------------------------");
         writeFile(s);
         tv.setText(s);
 

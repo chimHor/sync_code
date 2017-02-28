@@ -22,17 +22,9 @@ public class PackageXmlOpt extends ObjXmlOpt {
     static final ArraySet<String> skipFields = new ArraySet<String>();
 
     static {
-        skipFields.add("mAppMetaData");
         skipFields.add("mExtras");
-        skipFields.add("providers");
-        skipFields.add("services");
-        skipFields.add("Instrumentation");
-
-
         skipFields.add("mSignatures");
         skipFields.add("mSigningKeys");
-
-
         skipFields.add("applicationInfo");
     }
 

@@ -68,7 +68,6 @@ public class ManifestDigestXmlOpt extends ObjXmlOpt {
         ManifestDigest m = (ManifestDigest) obj;
         BytesWraper w = new BytesWraper((byte[])f.get(m));
         int index = Helper.getSerializableObject().wraperList.size();
-        Log.w("xxx", "wraperList add index "+ index);
         Helper.getSerializableObject().wraperList.add(w);
         Helper.saveTag(serializer, mTagName, Integer.toString(index),field!=null?field.getName():null);
         } catch (Exception e) {

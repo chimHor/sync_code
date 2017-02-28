@@ -20,7 +20,7 @@ import com.android.packagedb.util.PkgSerializer.AbstractObjXmlOpt;
 import com.android.packagedb.util.PkgSerializer.ObjXmlOpt;
 import com.android.packagedb.util.PkgSerializer.AbstractObjXmlOpt.Helper;
 
-public class PatternMatcherXmlOpt extends ObjXmlOpt {
+public class PathPermissionXmlOpt extends ObjXmlOpt {
 
     static final ArraySet<String> keyFields = new ArraySet<String>();
     static final ArraySet<String> skipFields = new ArraySet<String>();
@@ -28,12 +28,11 @@ public class PatternMatcherXmlOpt extends ObjXmlOpt {
     private int objType;
     private String objReadPermission;
     private String objWritePermission;
-    private String tureClass;
     static {
     }
 
-    public PatternMatcherXmlOpt() {
-        mClass = PatternMatcher.class;
+    public PathPermissionXmlOpt() {
+        mClass = PathPermission.class;
     }
 
     @Override
@@ -42,7 +41,6 @@ public class PatternMatcherXmlOpt extends ObjXmlOpt {
         int count = 0;
         final int innerDepth = parser.getDepth();
         int xmlType = 0;
-        tureClass = parser.getAttributeValue(null,PkgSerializer.ATTR_CLASS);
         while ((count < 2) && (xmlType = parser.next()) != XmlPullParser.END_DOCUMENT
                 && (xmlType != XmlPullParser.END_TAG || parser.getDepth() > innerDepth)) {
             if (xmlType == XmlPullParser.START_TAG && (parser.getDepth() == innerDepth + 1)) {
@@ -82,17 +80,12 @@ public class PatternMatcherXmlOpt extends ObjXmlOpt {
 
     @Override
     public Object createInstance(String suggestClass) {
-    	if (tureClass.contains("PathPermission")) {
-    		return new PathPermission(objPattern, objType,objReadPermission,objWritePermission );
-    	}
-        return new PatternMatcher(objPattern, objType);
+    	return new PathPermission(objPattern, objType,objReadPermission,objWritePermission );
+
     }
     @Override
     public Object createInstance(Class suggestClass) {
-    	if (tureClass.contains("PathPermission")) {
-    		return new PathPermission(objPattern, objType,objReadPermission,objWritePermission );
-    	}
-        return new PatternMatcher(objPattern, objType);
+    	return new PathPermission(objPattern, objType,objReadPermission,objWritePermission );
     }
 
     @Override

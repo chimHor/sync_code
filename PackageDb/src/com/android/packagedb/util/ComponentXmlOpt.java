@@ -9,6 +9,7 @@ import android.content.pm.PackageParser.Component;
 import android.content.pm.PackageParser.Package;
 import android.content.pm.PackageItemInfo;
 import android.util.ArraySet;
+import android.util.Log;
 
 import org.xmlpull.v1.XmlPullParserFactory;
 import org.xmlpull.v1.XmlPullParser;

@@ -496,7 +496,7 @@ public class TestCompareHelper {
         }
         
         	Log.wtf("Test", " shoult not be here");
-        	printFalseMsg(null);
+        	printFalseMsg("wtf");
         	return false;
     }
 
@@ -509,13 +509,14 @@ public class TestCompareHelper {
 			pos.append(comparePos.get(i));
 			pos.append(" : ");
 		}
-
+		///*
 		if (!(msg == null || msg.equals(""))) {
 			Log.w("Test", "false in "+depth+", "+pos.toString());
 			Log.w("Test", msg);
 		} else {
-			Log.w("Test", "compare in "+depth+", "+pos.toString());
+			//Log.w("Test", "compare in "+depth+", "+pos.toString());
 		}
+		//*/
 	}
 
 }

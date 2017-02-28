@@ -14,6 +14,9 @@ import android.content.pm.PackageParser.Provider;
 import android.content.pm.PackageParser.Instrumentation;
 import android.content.pm.PackageParser.Permission;
 import android.content.pm.PackageParser.PermissionGroup;
+import android.content.pm.PackageParser.ActivityIntentInfo;
+import android.content.pm.PackageParser.ServiceIntentInfo;
+import android.content.pm.PackageParser.ProviderIntentInfo;
 
 import java.io.Reader;
 import java.io.Writer;
@@ -196,9 +199,10 @@ public class PkgSerializer {
                     }
                 } else {
                     String className = parser.getAttributeValue(null,ATTR_CLASS);
-                    if (className != null) {
+                    //todo: if opt collect some info before create instance,  can't get classname. like AuthorityEntry
+                    //if (className != null) {
                         objT = opt.createInstance(className);
-                    }
+                    //}
                 }
                 return objT;
             }
@@ -286,12 +290,15 @@ public class PkgSerializer {
         new ComponentXmlOpt(Service.class, ServiceInfo.class),
         new ComponentXmlOpt(Provider.class, ProviderInfo.class),
         new ComponentXmlOpt(Instrumentation.class, InstrumentationInfo.class),
-        new ActivityIntentInfoXmlOpt(),
+        new IntentInfoXmlOpt(ActivityIntentInfo.class, Activity.class, "activity"),
+        new IntentInfoXmlOpt(ServiceIntentInfo.class, Service.class, "service"),
+        new IntentInfoXmlOpt(ProviderIntentInfo.class, Provider.class, "provider"),
         new AuthorityEntryXmlOpt(),
         new BundleXmlOpt(),
         new CertificateXmlOpt(),
         new ManifestDigestXmlOpt(),
         new PatternMatcherXmlOpt(),
+        new PathPermissionXmlOpt(),
         new ComponentXmlOpt(Permission.class, PermissionInfo.class),
         new ComponentXmlOpt(PermissionGroup.class, PermissionGroupInfo.class),
         new PublicKeyXmlOpt(),
@@ -1465,7 +1472,6 @@ public class PkgSerializer {
         AbstractObjXmlOpt.Helper.oo = null;
         
         if (obj != null && obj instanceof PackageParser.Package) {
-        	Log.w("xxx", " pkg convert signatures");
         	PackageParser.Package pkg = (PackageParser.Package) obj;
         	try {
         		pkg.mSignatures = convertToSignatures(pkg.mCertificates);
