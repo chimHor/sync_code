@@ -10,6 +10,7 @@ import android.content.pm.ConfigurationInfo;
 import android.content.pm.FeatureGroupInfo;
 import android.content.pm.FeatureInfo;
 import android.content.pm.ManifestDigest;
+import android.content.pm.PackageItemInfo;
 import android.content.pm.Signature;
 import android.content.pm.PackageParser.Activity;
 import android.content.pm.PackageParser.ActivityIntentInfo;
@@ -23,7 +24,7 @@ import android.os.Bundle;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
-public class ApplicationInfoGhost implements Serializable {
+public class ApplicationInfoGhost extends PackageItemInfoGhost implements Serializable {
     public String taskAffinity;
     public String permission;
     public String processName;
@@ -57,46 +58,86 @@ public class ApplicationInfoGhost implements Serializable {
     public int targetSdkVersion;
     public int versionCode;
     public boolean enabled = true;
-    public int enabledSetting = PackageManager.COMPONENT_ENABLED_STATE_DEFAULT;
-    public int installLocation = PackageInfo.INSTALL_LOCATION_UNSPECIFIED;
-
-    public ApplicationInfo toApplictionInfo() {
-        taskAffinity = source.readString();
-        permission = source.readString();
-        processName = source.readString();
-        className = source.readString();
-        theme = source.readInt();
-        flags = source.readInt();
-        requiresSmallestWidthDp = source.readInt();
-        compatibleWidthLimitDp = source.readInt();
-        largestWidthLimitDp = source.readInt();
-        scanSourceDir = source.readString();
-        scanPublicSourceDir = source.readString();
-        sourceDir = source.readString();
-        publicSourceDir = source.readString();
-        splitSourceDirs = source.readStringArray();
-        splitPublicSourceDirs = source.readStringArray();
-        nativeLibraryDir = source.readString();
-        secondaryNativeLibraryDir = source.readString();
-        nativeLibraryRootDir = source.readString();
-        nativeLibraryRootRequiresIsa = source.readInt() != 0;
-        primaryCpuAbi = source.readString();
-        secondaryCpuAbi = source.readString();
-        resourceDirs = source.readStringArray();
-        seinfo = source.readString();
-        sharedLibraryFiles = source.readStringArray();
-        dataDir = source.readString();
-        uid = source.readInt();
-        targetSdkVersion = source.readInt();
-        versionCode = source.readInt();
-        enabled = source.readInt() != 0;
-        enabledSetting = source.readInt();
-        installLocation = source.readInt();
-        manageSpaceActivityName = source.readString();
-        backupAgentName = source.readString();
-        descriptionRes = source.readInt();
-        uiOptions = source.readInt();
+    public int enabledSetting = 0;
+    public int installLocation = 0;
+    
+    public ApplicationInfoGhost(ApplicationInfo aInfo) {
+    	super(aInfo);
+    	taskAffinity = aInfo.taskAffinity;
+    	permission = aInfo.permission;
+    	processName = aInfo.processName;
+    	className = aInfo.className;
+    	theme = aInfo.theme;
+    	flags = aInfo.flags;
+    	requiresSmallestWidthDp = aInfo.requiresSmallestWidthDp;
+    	compatibleWidthLimitDp = aInfo.compatibleWidthLimitDp;
+    	largestWidthLimitDp = aInfo.largestWidthLimitDp;
+    	scanSourceDir = aInfo.scanSourceDir;
+    	scanPublicSourceDir = aInfo.scanPublicSourceDir;
+    	sourceDir = aInfo.sourceDir;
+    	publicSourceDir = aInfo.publicSourceDir;
+    	splitSourceDirs = aInfo.splitSourceDirs;
+    	splitPublicSourceDirs = aInfo.splitPublicSourceDirs;
+    	nativeLibraryDir = aInfo.nativeLibraryDir;
+    	secondaryNativeLibraryDir = aInfo.secondaryNativeLibraryDir;
+    	nativeLibraryRootDir = aInfo.nativeLibraryRootDir;
+    	nativeLibraryRootRequiresIsa = aInfo.nativeLibraryRootRequiresIsa;
+    	primaryCpuAbi = aInfo.primaryCpuAbi;
+    	secondaryCpuAbi = aInfo.secondaryCpuAbi;
+    	resourceDirs = aInfo.resourceDirs;
+    	seinfo = aInfo.seinfo;
+    	sharedLibraryFiles = aInfo.sharedLibraryFiles;
+    	dataDir = aInfo.dataDir;
+    	uid = aInfo.uid;
+    	targetSdkVersion = aInfo.targetSdkVersion;
+    	versionCode = aInfo.versionCode;
+    	enabled = aInfo.enabled;
+    	enabledSetting = aInfo.enabledSetting;
+    	installLocation = aInfo.installLocation;
+    	manageSpaceActivityName = aInfo.manageSpaceActivityName;
+    	backupAgentName = aInfo.backupAgentName;
+    	descriptionRes = aInfo.descriptionRes;
+    	uiOptions = aInfo.uiOptions;
     }
+    
 
-
+    public ApplicationInfo dumpFromGhost(ApplicationInfo aInfo) {
+    	dumpFromGhost((PackageItemInfo)aInfo);
+    	aInfo.taskAffinity = taskAffinity;
+    	aInfo.permission = permission;
+    	aInfo.processName = processName;
+    	aInfo.className = className;
+    	aInfo.theme = theme;
+    	aInfo.flags = flags;
+    	aInfo.requiresSmallestWidthDp = requiresSmallestWidthDp;
+    	aInfo.compatibleWidthLimitDp = compatibleWidthLimitDp;
+    	aInfo.largestWidthLimitDp = largestWidthLimitDp;
+    	aInfo.scanSourceDir = scanSourceDir;
+    	aInfo.scanPublicSourceDir = scanPublicSourceDir;
+    	aInfo.sourceDir = sourceDir;
+    	aInfo.publicSourceDir = publicSourceDir;
+    	aInfo.splitSourceDirs = splitSourceDirs;
+    	aInfo.splitPublicSourceDirs = splitPublicSourceDirs;
+    	aInfo.nativeLibraryDir = nativeLibraryDir;
+    	aInfo.secondaryNativeLibraryDir = secondaryNativeLibraryDir;
+    	aInfo.nativeLibraryRootDir = nativeLibraryRootDir;
+    	aInfo.nativeLibraryRootRequiresIsa = nativeLibraryRootRequiresIsa;
+    	aInfo.primaryCpuAbi = primaryCpuAbi;
+    	aInfo.secondaryCpuAbi = secondaryCpuAbi;
+    	aInfo.resourceDirs = resourceDirs;
+    	aInfo.seinfo = seinfo;
+    	aInfo.sharedLibraryFiles = sharedLibraryFiles;
+    	aInfo.dataDir = dataDir;
+    	aInfo.uid = uid;
+    	aInfo.targetSdkVersion = targetSdkVersion;
+    	aInfo.versionCode = versionCode;
+    	aInfo.enabled = enabled;
+    	aInfo.enabledSetting = enabledSetting;
+    	aInfo.installLocation = installLocation;
+    	aInfo.manageSpaceActivityName = manageSpaceActivityName;
+    	aInfo.backupAgentName = backupAgentName;
+    	aInfo.descriptionRes = descriptionRes;
+    	aInfo.uiOptions = uiOptions;
+    	return aInfo;
+    }
 }
