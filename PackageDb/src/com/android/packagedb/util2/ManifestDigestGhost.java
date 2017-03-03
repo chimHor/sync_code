@@ -35,13 +35,17 @@ public class ManifestDigestGhost implements Serializable {
     
     public ManifestDigestGhost(ManifestDigest md) {
         try{
-        	content = (byte[])f.get(md);
+        	if (md != null)
+        		content = (byte[])f.get(md);
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
     
     public ManifestDigest dumpFromGhost(){
+    	if (content == null) {
+    		return null;
+    	}
     	ManifestDigest m = null;
 		try {
 			m = (ManifestDigest) t.newInstance(content);

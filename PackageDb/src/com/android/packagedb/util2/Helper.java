@@ -149,6 +149,57 @@ public class Helper {
         return null;
     }
     
+    public static void serializaPerfTest() {
+    	byte[] bytes;
+        try {
+        	int count = 1000;
+        	
+        	{
+	            ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
+	            ObjectOutputStream out = new ObjectOutputStream(outBytes);
+	            for (int i = 0 ; i < count; i++) {
+		            SerializableTestObj obj = SerializableTestObj.randomTestObj();
+		            out.writeObject(obj);
+	        	}
+	            out.close();
+	            bytes =outBytes.toByteArray();
+	            ByteArrayInputStream inBytes = new ByteArrayInputStream(bytes);
+	            ObjectInputStream in = new ObjectInputStream(inBytes);
+	            long t1 = SystemClock.uptimeMillis();
+	            for (int i = 0 ; i < count; i++) {
+	            	SerializableTestObj obj2 = (SerializableTestObj) in.readObject();
+	            }
+	            long t2 = SystemClock.uptimeMillis();
+	            Log.e("xxx", "SerializableTestObj : " + (t2-t1));
+	            in.close();
+        	}
+        	
+        	{
+	            ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
+	            ObjectOutputStream out = new ObjectOutputStream(outBytes);
+	            for (int i = 0 ; i < count; i++)  {
+		            SerializableTestObj2 obj = SerializableTestObj2.randomTestObj(); 
+		            out.writeObject(obj);
+	            }
+	            out.close();
+	            bytes =outBytes.toByteArray();
+	            ByteArrayInputStream inBytes = new ByteArrayInputStream(bytes);
+	            ObjectInputStream in = new ObjectInputStream(inBytes);
+	            long t1 = SystemClock.uptimeMillis();
+	            for (int i = 0 ; i < count; i++) {
+	            	SerializableTestObj2 obj2 = (SerializableTestObj2) in.readObject();
+	            }
+	            long t2 = SystemClock.uptimeMillis();
+	            Log.e("xxx", "SerializableTestObj2 : " + (t2-t1));
+	            in.close();
+        	}
+        	
+        	
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void serializeBefore() {
     	cleanBundle();
     }
@@ -161,5 +212,5 @@ public class Helper {
     public static void parseAfter() {
     	cleanBundle();
     }
-    
+
 }

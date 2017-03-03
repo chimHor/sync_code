@@ -65,17 +65,22 @@ import java.security.cert.CertificateFactory;
 import com.android.packagedb.test.TestCompareHelper;
 import com.android.packagedb.test.TestObj;
 import com.android.packagedb.util.PkgSerializer;
+import com.android.packagedb.util2.CertificateGhost;
+import com.android.packagedb.util2.ManifestDigestGhost;
+import com.android.packagedb.util2.PackageDataManager;
 
 public class MainActivity extends Activity {
     static final String TAG = "PackageDbActivity";
 
-    PackageParserDataManager ppdManager;
+    PackageDataManager ppdManager;
     //File[] apps;
 
     final String pkgInstallerPath = "/system/app/Gallery2";
     final String pkgInstallerName = "com.android.packageinstaller";
     TextView tv;
-    Button b;
+    Button br;
+    Button bw;
+    Button bt;
     public int i = 0;
     @Override
     public void onCreate(Bundle icycle) {
@@ -84,16 +89,34 @@ public class MainActivity extends Activity {
         setContentView(R.layout.main);
         tv = (TextView) findViewById(R.id.abc);
         tv.setMovementMethod(ScrollingMovementMethod.getInstance());
-        b = (Button) findViewById(R.id.but);
-        b.setOnClickListener(new View.OnClickListener() {
+        CertificateGhost g = new CertificateGhost(null);
+        ManifestDigestGhost m = new ManifestDigestGhost(null);
+        ppdManager = new PackageDataManager(this);
+        br = (Button) findViewById(R.id.butr);
+        br.setOnClickListener(new View.OnClickListener() {
                 public void onClick(View v) {
                             //testPkg();
                 			//cmpSystemApp();
                 			//ttt();
-                			cmpSystemApp2();
+                			//cmpSystemApp2();
+                			//cmpSystemApp3();
+                			//com.android.packagedb.util2.Helper.serializaPerfTest();
+                			readDb();
                         }
                 });
-
+        bw = (Button) findViewById(R.id.butw);
+        bw.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                			ppdManager.clear();
+                			writeDb();
+                        }
+                });
+        bt = (Button) findViewById(R.id.butt);
+        bt.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View v) {
+                			readDbAntTest();
+                        }
+                });
     //testXmlObj();
 //        initTest();
 //        testAddpkg();
@@ -131,7 +154,7 @@ public class MainActivity extends Activity {
             writeFile(s);
             break;
             } else  {
-            	suc +=1;
+            	suc +=1;readDb();
             }
             } catch (PackageParser.PackageParserException e) {
                 e.printStackTrace();
@@ -176,6 +199,140 @@ public class MainActivity extends Activity {
     	
     }
     
+    public void cmpSystemApp3() {
+    	final File systemAppDir = new File("/system/priv-app");
+    	final File[] files = systemAppDir.listFiles();
+    	PackageParser pp = new PackageParser();
+    	int flags = PackageParser.PARSE_IS_SYSTEM | PackageParser.PARSE_MUST_BE_APK;
+    	int suc = 0;
+    	long t= 0;
+    	for (File file : files) {
+    		try {
+    		PackageParser.Package pkg = pp.parsePackage(file, flags);
+    		pp.collectCertificates(pkg,flags);
+            pp.collectManifestDigest(pkg);
+            byte[] bytes = com.android.packagedb.util2.Helper.serializePackage(pkg);
+            PackageParser.Package pkg2 = null;
+            long t1 = SystemClock.uptimeMillis();
+            //Debug.startMethodTracing(file.getName());
+            pkg2 = (PackageParser.Package)com.android.packagedb.util2.Helper.parsePackage(bytes);
+            //Debug.stopMethodTracing();
+            long t2 = SystemClock.uptimeMillis();
+            t += t2-t1;
+            boolean b = TestCompareHelper.compare(pkg, pkg2);
+            if (!b) {
+            Log.w("xxx", " pkg " + file.toString()+"parse cmp ret : "+ b);
+            //break;
+            } else  {
+            	suc +=1;
+            }
+            } catch (PackageParser.PackageParserException e) {
+                e.printStackTrace();
+            }
+    	}
+    	Log.w("xxx", "suc : "+ suc + " t : "+ t);
+    	
+    }
+    
+    public List<PackageParser.Package> readDb() {
+    	final File systemPrivAppDir = new File("/system/priv-app");
+    	final File systemAppDir = new File("/system/app");
+    	final File[] files1 = systemPrivAppDir.listFiles();
+    	final File[] files2 = systemAppDir.listFiles();
+    	long t1 = SystemClock.uptimeMillis();
+    	ArrayList<PackageParser.Package> list = new ArrayList<PackageParser.Package>();
+    	for (File file : files1) {
+    		PackageParser.Package pkg = ppdManager.getPkgParserData(file.getPath());
+    		list.add(pkg);
+    	}
+    	for (File file : files2) {
+    		PackageParser.Package pkg = ppdManager.getPkgParserData(file.getPath());
+    		list.add(pkg);
+    	}
+    	long t2 = SystemClock.uptimeMillis();
+    	Log.w("xxx", " parse time  :" + (t2-t1));
+    	ppdManager.close();
+    	return list;
+    }
+    
+    public void readDbAntTest() {
+    	final File systemPrivAppDir = new File("/system/priv-app");
+    	final File systemAppDir = new File("/system/app");
+    	final File[] files1 = systemPrivAppDir.listFiles();
+    	final File[] files2 = systemAppDir.listFiles();
+    	PackageParser pp = new PackageParser();
+    	int flags = PackageParser.PARSE_IS_SYSTEM | PackageParser.PARSE_MUST_BE_APK;
+    	int suc = 0;
+    	for (File file : files1) {
+    		try {
+    		PackageParser.Package pkg = pp.parsePackage(file, flags);
+    		pp.collectCertificates(pkg,flags);
+            pp.collectManifestDigest(pkg);
+    		PackageParser.Package pkg2 = ppdManager.getPkgParserData(file.getPath());
+            boolean b = TestCompareHelper.compare(pkg, pkg2);
+            if (!b) {
+            Log.w("xxx", " pkg " + file.toString()+"parse cmp ret : "+ b);
+            return;
+            } else  {
+            	suc +=1;
+            }
+            } catch (PackageParser.PackageParserException e) {
+                e.printStackTrace();
+            }
+            
+    	}
+    	for (File file : files2) {
+    		try{
+    		PackageParser.Package pkg = pp.parsePackage(file, flags);
+    		pp.collectCertificates(pkg,flags);
+            pp.collectManifestDigest(pkg);
+    		PackageParser.Package pkg2 = ppdManager.getPkgParserData(file.getPath());
+            boolean b = TestCompareHelper.compare(pkg, pkg2);
+            if (!b) {
+            Log.w("xxx", " pkg " + file.toString()+"parse cmp ret : "+ b);
+            return;
+            } else  {
+            	suc +=1;
+            }
+	        } catch (PackageParser.PackageParserException e) {
+	            e.printStackTrace();
+	        }
+    	}
+    	ppdManager.close();
+    	Log.w("xxx", " pkg "+suc+"/"+ (files1.length+files2.length) +" pass ");
+    	return ;
+    }
+    public void writeDb() {
+    	final File systemPrivAppDir = new File("/system/priv-app");
+    	final File systemAppDir = new File("/system/app");
+    	final File[] files1 = systemPrivAppDir.listFiles();
+    	final File[] files2 = systemAppDir.listFiles();
+    	PackageParser pp = new PackageParser();
+    	int flags = PackageParser.PARSE_IS_SYSTEM | PackageParser.PARSE_MUST_BE_APK;
+    	for (File file : files1) {
+    		try {
+    		PackageParser.Package pkg = pp.parsePackage(file, flags);
+    		pp.collectCertificates(pkg,flags);
+            pp.collectManifestDigest(pkg);
+            ppdManager.addPkgParserData(pkg);
+            } catch (PackageParser.PackageParserException e) {
+                e.printStackTrace();
+            }
+    	}
+    	for (File file : files2) {
+    		try {
+    		PackageParser.Package pkg = pp.parsePackage(file, flags);
+    		pp.collectCertificates(pkg,flags);
+            pp.collectManifestDigest(pkg);
+            ppdManager.addPkgParserData(pkg);
+	        } catch (PackageParser.PackageParserException e) {
+	            e.printStackTrace();
+	        }
+    	}
+    	ppdManager.close();
+    }
+    
+    
     public void ttt() {
         PackageParser pp = new PackageParser();
         try {
@@ -215,15 +372,8 @@ public class MainActivity extends Activity {
     }
     
     public void initTest() {
-
-        ppdManager = new PackageParserDb(this);
-        ppdManager.clear();
-//        File systemAppDir = new File("/system/app");
-//        apps = systemAppDir.listFiles();
-//       if (ArrayUtils.isEmpty(files)) {
-//            Log.w(TAG,"empty system/apps");
-//        }
-
+        
+        
     }
     public void testXmlObj() {
         PkgSerializer x = new PkgSerializer();
@@ -272,48 +422,5 @@ public class MainActivity extends Activity {
     }
 
 
-    public void testAddpkg() {
-        ppdManager.clear();
-        ppdManager.addPkgParserData(pkgInstallerPath);
-        PackageParser.Package pkg = ppdManager.getPkgParserData(pkgInstallerPath);
-        /*
-        if (pkg.packageName.equals(pkgInstallerName)) {
-            Log.i(TAG,"test add pkg sucessful");
-        } else {
-            Log.i(TAG,"test add pkg fail");
-        }
-        */
-    }
-    public void testDbVersion() {
-        PackageParserDb manager = null;
-        try {
-            manager = (PackageParserDb) ppdManager;
-        } catch (ClassCastException e) {
-            return;
-        }
-
-        manager.clear();
-        manager.addPkgParserData(pkgInstallerPath);
-        manager.testLowerVersion();
-        PackageParser.Package pkg = manager.getPkgParserData(pkgInstallerPath);
-        if (pkg == null) {
-            Log.i(TAG,"test testLowerVersion sucessful");
-        } else {
-
-            Log.i(TAG,"test testLowerVersion fail");
-        }
-
-        manager.clear();
-        manager.addPkgParserData(pkgInstallerPath);
-        manager.testHigherVersion();
-        pkg = manager.getPkgParserData(pkgInstallerPath);
-        if (pkg == null) {
-            Log.i(TAG,"test testHigherVersion sucessful");
-        } else {
-
-            Log.i(TAG,"test testHigherVersion fail");
-        }
-
-    }
 }
 

@@ -41,13 +41,17 @@ public class CertificateGhost implements Serializable {
     
     public CertificateGhost(Certificate c) {
     	try {
-        content = c.getEncoded();
+    		if (c != null)
+    			content = c.getEncoded();
     	} catch (Exception e) {
     		e.printStackTrace();
     	}
     }
     
     public Certificate dumpFromGhost(){
+    	if (content == null || content.length == 0) {
+    		return null;
+    	}
         final InputStream is = new ByteArrayInputStream(content);
         Certificate c = null;
         try {
