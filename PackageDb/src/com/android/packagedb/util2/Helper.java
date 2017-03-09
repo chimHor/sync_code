@@ -90,7 +90,7 @@ public class Helper {
             ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
             ObjectOutputStream out = new ObjectOutputStream(outBytes);
             PackageGhost pkgGhost = new PackageGhost(pkg);
-            out.writeObject(bundleGhostList);
+            //out.writeObject(bundleGhostList);
             out.writeObject(pkgGhost);
             out.close();
             return outBytes.toByteArray();
@@ -102,12 +102,15 @@ public class Helper {
         return null;
     }
     public static Package parsePackage(byte[] bytes) {
+    	if (bytes == null) {
+    		return null;
+    	}
     	parseBefore();
         try {
         	long t1 = SystemClock.uptimeMillis();
             ByteArrayInputStream inBytes = new ByteArrayInputStream(bytes);
             ObjectInputStream in = new ObjectInputStream(inBytes);
-            bundleGhostList = (ArrayList<BundleGhost>)in.readObject();
+            //bundleGhostList = (ArrayList<BundleGhost>)in.readObject();
             PackageGhost pkgGhost = (PackageGhost)in.readObject();
             long t2 = SystemClock.uptimeMillis();
             Package pkg = pkgGhost.dumpFromGhost();
@@ -129,7 +132,7 @@ public class Helper {
             ByteArrayOutputStream outBytes = new ByteArrayOutputStream();
             ObjectOutputStream out = new ObjectOutputStream(outBytes);
             PackageGhost pkgGhost = new PackageGhost(pkg);
-            out.writeObject(bundleGhostList);
+            //out.writeObject(bundleGhostList);
             out.writeObject(pkgGhost);
             out.close();
             bytes =outBytes.toByteArray();
@@ -137,7 +140,7 @@ public class Helper {
             parseBefore();
             ByteArrayInputStream inBytes = new ByteArrayInputStream(bytes);
             ObjectInputStream in = new ObjectInputStream(inBytes);
-            bundleGhostList = (ArrayList<BundleGhost>)in.readObject();
+            //bundleGhostList = (ArrayList<BundleGhost>)in.readObject();
             PackageGhost pkgGhost2 = (PackageGhost)in.readObject();
             Package pkg2 = pkgGhost.dumpFromGhost();
             return pkg2;

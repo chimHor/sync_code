@@ -15,8 +15,7 @@ public class PackageItemInfoGhost implements Serializable{
     public int icon;
     public int banner;
     public int logo;
-    //public Bundle metaData;
-    public int metaData = -1;
+    public BundleGhost metaData;
     public int showUserIcon = UserHandle.USER_NULL;
     
     public PackageItemInfoGhost(PackageItemInfo info) {
@@ -28,7 +27,7 @@ public class PackageItemInfoGhost implements Serializable{
     	banner = info.banner;
     	logo = info.logo;
     	if (info.metaData != null) {
-    		metaData = Helper.getBundleRefId(info.metaData);
+    		metaData = new BundleGhost(info.metaData);
     	}
     	showUserIcon = info.showUserIcon;
     }
@@ -44,7 +43,9 @@ public class PackageItemInfoGhost implements Serializable{
     	info.icon = icon;
     	info.banner = banner;
     	info.logo = logo;
-    	info.metaData = Helper.getBundleByRefId(metaData);
+    	if (metaData != null) {
+    		info.metaData = metaData.dumpFromGhost(null);
+    	}
     	info.showUserIcon = showUserIcon;
     	return info;
     }

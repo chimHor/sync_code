@@ -63,7 +63,7 @@ public class PackageGhost implements Serializable {
 
     //3
     //public Bundle mAppMetaData = null;
-    public int mAppMetaData = -1;
+    public BundleGhost mAppMetaData;
 
     //4
     public int mVersionCode;
@@ -183,8 +183,9 @@ public class PackageGhost implements Serializable {
         mAdoptPermissions = Helper.add(mAdoptPermissions, pkg.mAdoptPermissions);
 
         //3
-        mAppMetaData = Helper.getBundleRefId(pkg.mAppMetaData);
-
+        if (pkg.mAppMetaData != null) {
+        	mAppMetaData = new BundleGhost(pkg.mAppMetaData);
+        }
         //4
         mVersionCode = pkg.mVersionCode;
         mVersionName = pkg.mVersionName;
@@ -348,8 +349,9 @@ public class PackageGhost implements Serializable {
         pkg.mRealPackage = mRealPackage;
         pkg.mAdoptPermissions = Helper.add(pkg.mAdoptPermissions, mAdoptPermissions);
         //3
-        pkg.mAppMetaData = Helper.getBundleByRefId(mAppMetaData);
-
+        if (mAppMetaData != null) {
+        	pkg.mAppMetaData = mAppMetaData.dumpFromGhost(null);
+        }	
         //4
         pkg.mVersionCode = mVersionCode;
         pkg.mVersionName = mVersionName;

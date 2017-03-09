@@ -1,6 +1,12 @@
 package com.android.packagedb.util2;
 
 import java.io.File;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -9,13 +15,20 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.os.Build;
+import android.util.ArrayMap;
 import android.util.Log;
 
 
 public class PackageDataManager {
 
-    static final String TAG = "PackageParserDb";
+    static final String TAG = "PkgDataM";
+    private static PackageDataManager instance;
 
+    private static final int MAX_DUMP_THREADS = 2;
+    private static final int GET_PKG_TIMEOUT = 3000;
+    
+    
+    
     static final String DB_NAME = "package.db";
     static final int DB_VERSION = 2;
     static final String HEAD_TABLE = "head";
@@ -30,8 +43,11 @@ public class PackageDataManager {
 
     static class PackageTableColumns {
         public static final String _CODEPATH = "codePath";
-        public static final String _PACKAGENAME = "packageName";
+        //public static final String _PACKAGENAME = "packageName";
+        public static final String _LASTMODEFY = "modify";
+        public static final String _SIZE = "size";
         public static final String _CONTENT = "content";
+        
 
     }
 
@@ -44,8 +60,8 @@ public class PackageDataManager {
         @Override
         public void onCreate(SQLiteDatabase db) {
             createHeadTable(db);
-            createSystemPrivAppPkgTable(db);
-            createSystemAppPkgTable(db);
+            createPkgTable(db,SYSTEMPRIVAPPPKG_TABLE);
+            createPkgTable(db,SYSTEMAPPPKG_TABLE);
         }
 
         private void createHeadTable(SQLiteDatabase db) {
@@ -60,20 +76,13 @@ public class PackageDataManager {
                     + " VALUES ('" + key + "', '" + value + "');";
             db.execSQL(sql);
         }
-        private void createSystemPrivAppPkgTable(SQLiteDatabase db) {
+        private void createPkgTable( SQLiteDatabase db, String tableName) {
 
-            StringBuilder sb = new StringBuilder("CREATE TABLE " + SYSTEMAPPPKG_TABLE + " (");
+            StringBuilder sb = new StringBuilder("CREATE TABLE " + tableName + " (");
             sb.append(PackageTableColumns._CODEPATH + " TEXT PRIMARY KEY");
-            sb.append(", " + PackageTableColumns._PACKAGENAME + " TEXT");
-            sb.append(", " + PackageTableColumns._CONTENT + " TEXT");
-            sb.append(");");
-            db.execSQL(sb.toString());
-        }
-        private void createSystemAppPkgTable(SQLiteDatabase db) {
-
-            StringBuilder sb = new StringBuilder("CREATE TABLE " + SYSTEMPRIVAPPPKG_TABLE + " (");
-            sb.append(PackageTableColumns._CODEPATH + " TEXT PRIMARY KEY");
-            sb.append(", " + PackageTableColumns._PACKAGENAME + " TEXT");
+            //sb.append(", " + PackageTableColumns._PACKAGENAME + " TEXT");
+            sb.append(", " + PackageTableColumns._LASTMODEFY + " LONG");
+            sb.append(", " + PackageTableColumns._SIZE + " LONG");
             sb.append(", " + PackageTableColumns._CONTENT + " TEXT");
             sb.append(");");
             db.execSQL(sb.toString());
@@ -84,8 +93,8 @@ public class PackageDataManager {
             db.execSQL("DROP TABLE IF EXISTS " + SYSTEMAPPPKG_TABLE);
             db.execSQL("DROP TABLE IF EXISTS " + SYSTEMPRIVAPPPKG_TABLE);
             createHeadTable(db);
-            createSystemPrivAppPkgTable(db);
-            createSystemAppPkgTable(db);
+            createPkgTable(db,SYSTEMPRIVAPPPKG_TABLE);
+            createPkgTable(db,SYSTEMAPPPKG_TABLE);
         }
 
         @Override
@@ -103,52 +112,38 @@ public class PackageDataManager {
 
     Context mCtx;
     DbHelper helper = null;
+    SQLiteDatabase mDb = null;
     boolean isWriting = false;
-    public PackageDataManager(Context c) {
+
+    ArrayMap<String, PkgWraper> appDataToRead = new ArrayMap<String, PkgWraper>();
+    ArrayMap<String, PkgWraper> appDataToWrite = new ArrayMap<String, PkgWraper>();
+    
+    ExecutorService readTasks = null;
+    
+    
+    private PackageDataManager(Context c) {
         mCtx = c;
         helper = new DbHelper(c, DB_VERSION);
+        CertificateGhost g = new CertificateGhost(null);
+        ManifestDigestGhost m = new ManifestDigestGhost(null);
     }
 
-
-    static void fillContentValues(ContentValues cv, PackageParser.Package pkg) {
-        try {
-        	byte[] bytes = Helper.serializePackage(pkg);
-            cv.put(PackageTableColumns._CONTENT, bytes);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    public boolean addPkgParserData(PackageParser.Package pkg) {
-    	initDb();
-    	if (!isWriting) {
-    		mDb.beginTransaction();
-    		isWriting =true;
+    public static PackageDataManager getInstance(Context c) {
+    	if (instance == null) {
+    		instance = new PackageDataManager(c);
     	}
-        ContentValues cv = new ContentValues();
-        cv.put(PackageTableColumns._CODEPATH, pkg.codePath);
-        cv.put(PackageTableColumns._PACKAGENAME, pkg.packageName);
-        fillContentValues(cv,pkg);
-        if (pkg.codePath.startsWith("/system/priv-app")) {
-        	mDb.insert(SYSTEMPRIVAPPPKG_TABLE,null,cv);
-        } else if (pkg.codePath.startsWith("/system/app")) {
-        	mDb.insert(SYSTEMAPPPKG_TABLE,null,cv);
-        }
-        cv.clear();
-        return true;
+    	return instance;
     }
-
-    public PackageParser.Package parsePkgFromCursor(Cursor cursor) {
-        PackageParser.Package pkg = null;
-        try {
-            byte[] content = cursor.getBlob(cursor.getColumnIndex(PackageTableColumns._CONTENT));
-            pkg = Helper.parsePackage(content);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return pkg;
+    
+    public static class PkgWraper {
+    	long modifyTime;
+    	long size;
+    	String path;
+    	byte[] content;
+    	PackageParser.Package pkg;
+    	boolean beScaned = false;
     }
-    SQLiteDatabase mDb = null;
+    
     private void initDb() {
     	if (mDb == null) {
     		mDb = helper.getWritableDatabase();
@@ -156,61 +151,213 @@ public class PackageDataManager {
     	}
     }
 
-    public void close() {
+    public void closeDb() {
     	if (mDb != null) {
-    		finishWriteDb();
     		mDb.close();
     		mDb = null;
     	}
     }
     
-    private void finishWriteDb() {
+    private static final boolean isApkFile(File file) {
+        return isApkPath(file.getName());
+    }
+
+    private static boolean isApkPath(String path) {
+        return path.endsWith(".apk");
+    }
+    
+    private static File getApkFile(String path) {
+    	File apkPath = new File(path);
+    	if (apkPath.isDirectory()) {
+    	 final File[] files = apkPath.listFiles();
+         for (File file : files) {
+             if (isApkFile(file)) {
+            	 return file;
+             }
+         }
+    	} else if (isApkFile(apkPath)) {
+    		return apkPath;
+    	}
+         return null;
+    }
+    
+    public boolean addPkgParserData(PackageParser.Package pkg) {
+    	if (pkg == null) {
+    		return false;
+    	}
+        if (pkg.baseCodePath == null) {
+        	return false;
+        }
+        if (isWriting) {
+        	return false;
+        }
+    	PkgWraper pw = new PkgWraper();
+        pw.path = pkg.codePath;
+        File apkFile = new File(pkg.baseCodePath);
+        pw.modifyTime = apkFile.lastModified();
+        pw.size = apkFile.length();
+        pw.content = Helper.serializePackage(pkg);
+        appDataToWrite.put(pw.path, pw);
+        return true;
+    }
+    
+    public void saveDataToDb() {
     	if (isWriting) {
-	        mDb.setTransactionSuccessful();
-	        mDb.endTransaction();
-	        isWriting =false;
+    		return;
+    	}
+    	isWriting = true;
+    	initDb();
+    	ContentValues cv = new ContentValues();
+        Set<String> keySet = appDataToWrite.keySet();
+        Iterator<String> iterator = keySet.iterator();
+        while (iterator.hasNext()) {
+            String key = iterator.next();
+            PkgWraper pw = appDataToWrite.get(key);
+	            if (pw != null && pw.content != null) {
+			        cv.put(PackageTableColumns._CODEPATH, pw.path);
+			        //cv.put(PackageTableColumns._PACKAGENAME, pw.pkg.packageName);
+			        cv.put(PackageTableColumns._LASTMODEFY, pw.modifyTime);
+			        cv.put(PackageTableColumns._SIZE, pw.size);
+			        cv.put(PackageTableColumns._CONTENT, pw.content);
+		        if (pw.path.startsWith("/system/priv-app")) {
+		        	mDb.insertWithOnConflict(SYSTEMPRIVAPPPKG_TABLE, null, cv, SQLiteDatabase.CONFLICT_REPLACE);
+		        } else if (pw.path.startsWith("/system/app")) {
+		        	mDb.insertWithOnConflict(SYSTEMAPPPKG_TABLE, null, cv, SQLiteDatabase.CONFLICT_REPLACE);
+		        } else {
+		        	//do notthing
+		        }
+            }
+	        cv.clear();
+        }
+        closeDb();
+        appDataToWrite.clear();
+        isWriting = false;
+    }
+      
+    public PackageParser.Package getPkgParserData(String apkPath) {
+    	PkgWraper pw = appDataToRead.get(apkPath);
+    	if (pw == null) {
+    		return null;
+    	}
+    	File f = getApkFile(apkPath);
+    	if (f.lastModified() == pw.modifyTime && f.length() == pw.size) {
+        	synchronized (pw){
+        		if (pw.pkg != null) {
+        			pw.beScaned = true;
+        			return pw.pkg;
+        		}
+        		try {
+					pw.wait(GET_PKG_TIMEOUT);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+					return null;
+				}
+        		if (pw.pkg != null) {
+        			pw.beScaned = true;
+        			return pw.pkg;
+        		}
+        	}
+    	}
+    	return null;
+    }
+
+    static class DumpPkgFromGhost implements Runnable {
+    	final PkgWraper mPw;
+    	public DumpPkgFromGhost(PkgWraper pw) {
+    		mPw = pw;
+    	}
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			if (mPw == null) return;
+			synchronized (mPw){
+				mPw.pkg = Helper.parsePackage(mPw.content);
+				mPw.notify();
+			}
+		}
+    }
+    public void readDbData() {
+    	if (appDataToRead.size()>0 ) {
+    		return;
+    	}
+    	initDb();
+    	Cursor cursor = mDb.query(SYSTEMPRIVAPPPKG_TABLE, null , null, null, null, null, null);
+    	int pathPos = cursor.getColumnIndex(PackageTableColumns._CODEPATH);
+    	int lmPos = cursor.getColumnIndex(PackageTableColumns._LASTMODEFY);
+    	int sizePos = cursor.getColumnIndex(PackageTableColumns._SIZE);
+    	int ctPos = cursor.getColumnIndex(PackageTableColumns._CONTENT);
+    	
+    	readTasks = Executors.newFixedThreadPool(MAX_DUMP_THREADS);
+    	
+        while (cursor.moveToNext()) {
+        	PkgWraper pw = new PkgWraper();
+            pw.path = cursor.getString(pathPos);
+        	pw.modifyTime = cursor.getLong(lmPos);
+            pw.size = cursor.getLong(sizePos);
+            pw.content = cursor.getBlob(ctPos);
+            appDataToRead.put(pw.path, pw);
+            readTasks.submit(new DumpPkgFromGhost(pw));
+        }
+        cursor = mDb.query(SYSTEMAPPPKG_TABLE, null , null, null, null, null, null);
+        while (cursor.moveToNext()) {
+        	PkgWraper pw = new PkgWraper();
+            pw.path = cursor.getString(pathPos);
+        	pw.modifyTime = cursor.getLong(lmPos);
+            pw.size = cursor.getLong(sizePos);
+            pw.content = cursor.getBlob(ctPos);
+            appDataToRead.put(pw.path, pw);
+            readTasks.submit(new DumpPkgFromGhost(pw));
+        }
+        readTasks.shutdown();
+		mDb.close();
+		mDb = null;
+    }
+    
+    //just for test
+    public void waitForReadTasksFinish() {
+    	if (readTasks != null) {
+	    	try {
+				readTasks.awaitTermination(5, TimeUnit.SECONDS);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
     	}
     }
     
+    //it should be called after pkg scan
+    public void cleanNotScanedPkg() {
+    	//check readTasks finish or not just for Debug
+    	if (readTasks != null && (!readTasks.isTerminated())) {
+    		Log.w(TAG, " read task not finish !!!");
+    	}
+    	Collection<PkgWraper> set = appDataToRead.values();
+    	if (set.size() > 0) {
+    		initDb();
+    	}
+    	for (PkgWraper pw : set) {
+    		if (!pw.beScaned) {
+    			Log.i(TAG, " clean not scan pkg " + pw.path );
+		        final String whereClause = PackageTableColumns._CODEPATH + " = ?";
+		        String[] whereArgs = {pw.path};
+		        if (pw.path.startsWith("/system/priv-app")) {
+		        	mDb.delete(SYSTEMPRIVAPPPKG_TABLE, whereClause, whereArgs); 
+		        } else if (pw.path.startsWith("/system/app")) {
+		        	mDb.delete(SYSTEMAPPPKG_TABLE, whereClause, whereArgs); 
+		        } else {
+		        	//do notthing
+		        }
+    		}
+    	}
+    	closeDb();
+    	appDataToRead.clear();
+    }
     
-    public PackageParser.Package getPkgParserData(String apkPath) {
-        //todo: package parser update point
-    	initDb();
-    	finishWriteDb();
-        String[] args = {new String(apkPath)};
-        Cursor cursor = null;
-        if (apkPath.startsWith("/system/priv-app")) {
-        	cursor = mDb.query(SYSTEMPRIVAPPPKG_TABLE, null , PackageTableColumns._CODEPATH + " = ?", args, null, null, null);
-        } else if (apkPath.startsWith("/system/app")) {
-        	cursor = mDb.query(SYSTEMAPPPKG_TABLE, null , PackageTableColumns._CODEPATH + " = ?", args, null, null, null);
-        } else {
-        	return null;
-        }
-        PackageParser.Package pkg = null;
-
-        if (cursor.getCount()==1) {
-            cursor.moveToFirst();
-            pkg = parsePkgFromCursor(cursor);
-        }
-        return pkg;
-    }
-
-    public boolean removePkgParserData(String apkPath) {
-        return false;
-    }
-
-    public boolean isUpdateNeeded(String apkPath) {
-        return false;
-    }
-
-    public boolean updatePkgParserData(PackageParser.Package pkg) {
-        return removePkgParserData(pkg.codePath) && addPkgParserData(pkg);
-    }
-
     public void clear() {
     	initDb();
         helper.clearDb(mDb);
-        close();
+        closeDb();
     }
 
     public boolean isClearNeeded() {

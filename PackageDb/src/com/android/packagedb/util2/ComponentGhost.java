@@ -12,14 +12,18 @@ public class ComponentGhost implements Serializable{
     //public Package owner;
     //public final ArrayList<II> intents;
     //public String className;
-    public int  metaData;
+	 public BundleGhost metaData;
     
     public ComponentGhost(Component c) {
-    	metaData = Helper.getBundleRefId(c.metaData);
+    	if (c.metaData != null) {
+    		metaData = new BundleGhost(c.metaData);
+    	}
     }
 	
     public Component dumpFromGhost(Component c) {
-    	c.metaData = Helper.getBundleByRefId(metaData);
+    	if (metaData != null) {
+    		c.metaData = metaData.dumpFromGhost(null);
+    	}
     	return c;
     }
     
